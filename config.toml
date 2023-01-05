@@ -7,7 +7,7 @@ defaultContentLanguage = "en"
 # this will be included in the footer after the current year the site is last
 # built, followed by the (c) symbol
 # you can use markdown inside this field
-copyright = "Some copyright notice - [my license](https://example.com/license)"
+copyright = "Nikolaos Chalkiadakis"
 
 paginate = 5  # number of articles per page in the index
 summaryLength = 70  # number of words for article summaries
@@ -25,7 +25,7 @@ summaryLength = 70  # number of words for article summaries
     # requires setting `homeSinglePage`
     # goes well with extraContentDirs
     showSinglePageAsHome = false
-    homeSinglePage = "/home"
+    homeSinglePage = "/whoami"
 
     # It's best to put these icons in the "static" folder of your site
     logo = "/cyberpunk-cat512x512.png"
@@ -103,6 +103,7 @@ summaryLength = 70  # number of words for article summaries
     # Colors are defined in data/colors.yml
 
     # alternative sidebar layout
+    #TODO: In the posts, add a TOC side-bar
     enableSidebarLayout = false
     tocInSidebar = false  # if the sidebar is enbabled, show the TOC in the sidebar
 
@@ -127,9 +128,9 @@ summaryLength = 70  # number of words for article summaries
     # the folder it will look into can be customized with the pages variable
     # in params above
     [[menu.main]]
-        identifier = "about"
-        name = "About"
-        url = "/about/"
+        identifier = "whoami"
+        name = "whoami"
+        url = "/whoami/"
         weight = 10
     # these links (menu.icons) will be added as icon links below the main nav
     [[menu.icons]]
@@ -147,3 +148,9 @@ summaryLength = 70  # number of words for article summaries
 # it allows to output the article list as paged JSON so that "pages" can be retrieved via javascript
 [outputs]
     home = ["HTML", "JSON"]
+
+[markup]
+  [markup.tableOfContents]
+    endLevel = 4
+    ordered = false
+    startLevel = 2
