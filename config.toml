@@ -91,6 +91,7 @@ summaryLength = 70  # number of words for article summaries
 
     enableShareOnFediverse = false  # enable a button at the end of an article to share it on the fediverse
     tocBeforeImage = false  # show the table of contents before the main article image; default false
+    tocBesideImage = true   # show the table of contents and image side-by-side
 
     # WARNING: deprecated! Use [[menu.icons]] instead, look below
     # links = [
@@ -122,6 +123,8 @@ summaryLength = 70  # number of words for article summaries
     relatedArticlesNum = 2  # how many related articles to show
     randomRelated = false  # sorts related articles in random order (randomized at built time)
 
+    dateFormat = "02 Jan 2006"
+
 [menu]
     # these links will be added to the main navigation menu, sorted by weight
     # other elements in this menu are added automatically from the "pages" folder
@@ -143,6 +146,11 @@ summaryLength = 70  # number of words for article summaries
         name = "LinkedIn"
         url = "https://www.linkedin.com/in/chalkn"
         weight = 20
+    [[menu.icons]]
+        identifier = "ctftime"
+        name = "CTFTime"
+        url = "https://ctftime.org/user/128082"
+        weight = 30
 
 # this section is necessary if you want infinite scrolling
 # it allows to output the article list as paged JSON so that "pages" can be retrieved via javascript
