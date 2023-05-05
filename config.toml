@@ -162,3 +162,6 @@ summaryLength = 70  # number of words for article summaries
     endLevel = 4
     ordered = false
     startLevel = 2
+  [markup.goldmark.renderer]
+    unsafe = true
+    hardWraps = true
