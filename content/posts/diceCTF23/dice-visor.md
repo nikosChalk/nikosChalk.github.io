@@ -1,5 +1,5 @@
 ---
-title: "Pwning a hypervisor - DiceCTF 2023"
+title: "Pwning a hypervisor - DiceCTF23"
 date: 2023-02-10T00:00:01
 tags:
   - pwn
