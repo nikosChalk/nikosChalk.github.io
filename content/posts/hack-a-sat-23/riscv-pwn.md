@@ -143,7 +143,7 @@ Traceback (most recent call last):
 AttributeError: AttributeError: arch must be one of ['aarch64', 'alpha', 'amd64', 'arm', 'avr', 'cris', 'i386', 'ia64', 'm68k', 'mips', 'mips64', 'msp430', 'none', 'powerpc', 'powerpc64', 'riscv', 's390', 'sparc', 'sparc64', 'thumb', 'vax']
 ```
 
-Hmm interesting. It seems that the `pwnlib` library knows about `riscv'` architecture but not about `'em_riscv'` (upstream issue [here](https://github.com/Gallopsled/pwntools/pull/2177)). Anyway, we know already that our system can run the binary so let's add a small patch to the `~/.pyenv/versions/3.10.5/lib/python3.10/site-packages/pwnlib/elf/elf.py` file of the `pwnlib` library.
+Hmm interesting. It seems that the `pwnlib` library knows about `'riscv'` architecture but not about `'em_riscv'` (upstream issue [here](https://github.com/Gallopsled/pwntools/pull/2177)). Anyway, we know already that our system can run the binary so let's add a small patch to the `~/.pyenv/versions/3.10.5/lib/python3.10/site-packages/pwnlib/elf/elf.py` file of the `pwnlib` library.
 
 ```diff
 diff --git a/elf.py b/elf.py
