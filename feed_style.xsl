@@ -9,7 +9,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
         <meta charset="UTF-8"/>
         
-        <link type="text/css" rel="stylesheet" href="https://chalkiadakis.me/css/styles.95efc597cfb8cd9237514b0a9f3ae3201aca96871c8cf8a3072002436ddcaab26db11eea9b1482e12cc8bb1f2510797b62fada880a9b5688b9c6943a94179faa.css" integrity="sha512-le/Fl8+4zZI3UUsKnzrjIBrKloccjPijByACQ23cqrJtsR7qmxSC4SzIux8lEHl7YvraiAqbVoi5xpQ6lBefqg==" />
+        <link type="text/css" rel="stylesheet" href="https://chalkiadakis.me/css/styles.78454e95bc3bb7af4e371fd1e897fd1c4968c37e56603d2b366f4d9a8658e4299369f4de03647cf0e68420ad45571fa6f27c00e694f28e7b83274e512e314f00.css" integrity="sha512-eEVOlbw7t69ONx/R6Jf9HElow35WYD0rNm9NmoZY5CmTafTeA2R88OaEIK1FVx+m8nwA5pTyjnuDJ05RLjFPAA==" />
         <style>
           .aboutfeeds {
             margin: 24px 0; padding: 12px;
