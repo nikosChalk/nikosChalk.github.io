@@ -4,6 +4,12 @@ title = "Nikolaos Chalkiadakis"
 languageCode = "en"
 defaultContentLanguage = "en"
 
+[languages.en]
+    languageName = 'English'
+    weight = 1
+    [languages.en.params]
+      reading_speed = 228
+
 # this will be included in the footer after the current year the site is last
 # built, followed by the (c) symbol
 # you can use markdown inside this field
